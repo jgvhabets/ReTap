@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retap"
+version = "0.0.0"
+description = 'ReTap is an open-source tool to generate automated UPDRS finger-tapping predictions based on index-finger accelerometer data'
+readme = "README.md"
+requires-python = ">=3.9.13"
+license = {file = "LICENSE.txt"}
+keywords = ["finger-tapping", "UPDRS", "Parkinsons disease ", "bradykinesia"]
+authors = [
+  {email = "jgvhabets@gmail.com"},
+  {name = "Jeroen Habets"}
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Programming Language :: Python",
+  "Intended Audience :: Neurological, Movement Disorders, Researchers",
+  "License :: OSI Approved :: MIT License"
+]
+dependencies = [
+  "h5py==3.7.0",
+  "jupyter==1.0.0",
+  "matplotlib==3.5.2",
+  "numpy==1.23.3",
+  "openpyxl==3.0.10",
+  "pandas==1.4.4",
+  "scikit-learn==1.1.2",
+  "scipy==1.9.1"
+]
+
+[project.urls]
+homepage = "https://github.com/jgvhabets/ReTap"
+repository = "https://github.com/jgvhabets/ReTap"

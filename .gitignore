@@ -1,6 +1,9 @@
 # conda retap environment
 retap_test/
 
+# own dev files
+data/settings/config_jh.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

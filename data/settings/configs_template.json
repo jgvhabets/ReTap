@@ -1,0 +1,8 @@
+{
+    "main_directory": "",
+    "single_directories": {
+        "find_raw_data_in": "",
+        "save_predictions_to": "",
+        "save_figures_to": ""
+    }
+}
