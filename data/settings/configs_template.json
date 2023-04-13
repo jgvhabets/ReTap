@@ -1,8 +1,17 @@
 {
     "main_directory": "",
     "single_directories": {
-        "find_raw_data_in": "",
-        "save_predictions_to": "",
-        "save_figures_to": ""
+        "find_raw_data": "",
+        "save_results": "",
+        "save_figures": ""
+    },
+    "use_custom_acc_naming": false,
+    "custom_acc_channel_naming": {
+        "CUSTOM_L_X": "L_X",
+        "CUSTOM_L_Y": "L_Y",
+        "CUSTOM_L_Z": "L_Z",
+        "CUSTOM_R_X": "R_X",
+        "CUSTOM_R_Y": "R_Y",
+        "CUSTOM_R_Z": "R_Z"
     }
 }

@@ -10,28 +10,38 @@ from os import makedirs
 import json
 from pandas import read_excel
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Dict
+from collections import defaultdict
 from array import array
 import pickle
 
 
-def read_cfg_file(cfg_file: str = 'configs.json'):
+def read_cfg_file(cfg_filename: str = 'configs.json'):
+    """
+    Reads Configurations file.
+    File should be in ReTap/data/settings, and is default called
+    configs.json. Use the template 'configs_template.json' to create
+    your own configurations file.
+    """
     # check json filetype, and add if extension is missing
-    if splitext(cfg_file)[1] != '.json': cfg_file += '.json'
+    if splitext(cfg_filename)[1] != '.json': cfg_filename += '.json'
     # check existence of file
-    if not exists(cfg_file): 
-        cfg_file = join('data', 'settings', cfg_file)
+    if not exists(cfg_filename): 
+        cfg_filename = join('data', 'settings', cfg_filename)
 
-    assert exists(cfg_file), 'inserted cfg_filename does not exist (in data/settings)'
+    assert exists(cfg_filename), 'inserted cfg_filename does not exist (in data/settings)'
     
-    with open(cfg_file, 'r') as json_data:
+    with open(cfg_filename, 'r') as json_data:
         cfg = json.load(json_data)
 
     return cfg
 
 
-def get_directories_from_cfg():
-    cfg = read_cfg_file('config_jh')
+def get_directories_from_cfg(cfg_filename = 'default'):
+    # use either default (configs.json) or custom inserted filename
+    if cfg_filename == 'default': cfg = read_cfg_file()
+    else: cfg = read_cfg_file(cfg_filename)
 
     print(cfg)
     paths = {}
@@ -102,16 +112,28 @@ def get_file_selection(
     return sel_files
 
 
-def get_arr_key_indices(ch_names, hand_code):
+def get_arr_key_indices(ch_names, hand_code, cfg_fname=None):
     """
     creates dict with acc-keynames and indices
 
-    assumes that acc-channels are called X, Y, Z
-    and that the first three are for the left-finger,
-    last three for the right-finger
-
-    TODO: add Cfg variable to indicate
+    Supprted channel-names:
+    - acc-channels are called X, Y, Z, first [X, Y, Z]
+        are for the RIGHT-finger, second [X, Y, Z] are
+        for the LEFT-finger.
+    - acc-channels all called aux
+    - acc_channels called [L_X, L_Y, L_Z, R_X, R_Y, R_Z]
+    - custom acc-channels names defined in configs.json, should
+        be as {'custom_L_X': 'L_X', 'custom_L_Y': 'L_Y', etc}
     """
+    # check for given custom naming
+    use_custom_naming = False
+    if isinstance(cfg_fname, str):
+        cfg = read_cfg_file(cfg_fname)
+        if cfg['use_custom_channel_naming']:
+            custom_coding = cfg['custom_acc_channel_naming']
+            use_custom_naming = True
+
+    # empty dict to store
     dict_out = {}
 
     # set laterality of file for later analysis flow
@@ -123,8 +145,18 @@ def get_arr_key_indices(ch_names, hand_code):
     aux_count = 0
 
     for i, key in enumerate(ch_names):
+        
+        # use custom naming if defined
+        if use_custom_naming:
+            if key in list(custom_coding.keys()):
+                dict_out[custom_coding[key]] = i
+
+        # L_X, L_Y, etc
+        elif key in ['L_X', 'L_Y', 'L_Z', 'R_X', 'R_Y', 'R_Z']:
+            dict_out[key] = i
+        
         # standard BER acc-coding is X-Y-Z (first right, then left)
-        if key in ['X', 'Y', 'Z']:
+        elif key in ['X', 'Y', 'Z']:
 
             if f'R_{key}' in dict_out.keys():
                 # if right exists, make LEFT
@@ -156,7 +188,10 @@ class triAxial:
     user-specific accelerometer-key
     """
     data: array
-    key_indices: dict
+    key_indices: Dict[str, int] = field(
+        default_factory=lambda: defaultdict(lambda: {
+        'L_X': 0, 'L_Z': 2, 'R_X': 3, 'R_Z': 5}
+    ))
 
     def __post_init__(self,):
 
