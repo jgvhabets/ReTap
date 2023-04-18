@@ -7,13 +7,15 @@ single tapping traces
 import numpy as np
 from scipy.signal import butter, filtfilt
 from scipy.stats import variation
+from scipy.signal import resample_poly
 
 # Import own functions
 from preprocessing.finding_impacts import find_impacts
 
-def run_preproc_acc(
+def preprocess_acc(
     dat_arr,
     fs: int,
+    goal_fs: int = 250,
     to_detrend: bool=True,
     to_remove_outlier=True,
     to_check_magnOrder: bool=True,
@@ -25,8 +27,22 @@ def run_preproc_acc(
     Preprocess accelerometer according to defined steps
 
     Input:
-        - 
+        - dat_arr
+        - fs
+
+    Returns:
+        - dat_arr
+        - main_ax_index
     """
+    # resample if necessary
+    assert fs >= goal_fs, (
+        f'Sampling Frequency should be >= {goal_fs} Hz'
+        f', now detected {fs}')
+    
+    if fs > goal_fs:
+        dat_arr = resample_poly(x=dat_arr, up=1, axis=-1,
+            down=int(fs / goal_fs), )
+        
     main_ax_index = find_main_axis(dat_arr, method=main_axis_method,)
 
     if to_check_magnOrder: dat_arr = check_order_magnitude(
@@ -40,13 +56,11 @@ def run_preproc_acc(
     if to_remove_outlier: dat_arr = remove_outlier(
         dat_arr, main_ax_index, fs, verbose)  # replaces outliers with nans
     
-    # print('end preprocess')
 
     return dat_arr, main_ax_index
 
 
-def find_main_axis(
-    dat_arr, method: str = 'minmax',):
+def find_main_axis(dat_arr, method: str = 'minmax',):
     """
     Select acc-axis which recorded tapping the most
 

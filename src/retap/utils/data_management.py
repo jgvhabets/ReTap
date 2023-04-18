@@ -7,6 +7,7 @@ within ReTap-toolbox's functionality
 import os
 from os.path import join, exists, splitext
 from os import makedirs
+import sys
 import json
 from pandas import read_excel
 import numpy as np
@@ -15,6 +16,17 @@ from typing import Dict
 from collections import defaultdict
 from array import array
 import pickle
+
+
+def set_workingdirectory(goal_path='retap'):
+    wd = os.getcwd()
+    if not wd.endswith(goal_path):
+        if wd.endswith('ReTap'):
+            wd = os.path.join(os.getcwd(), 'src', 'retap')
+        while not wd.endswith(goal_path):
+            wd = os.path.dirname(wd)
+        os.chdir(wd)  # set wd to retap
+        sys.path.append(os.getcwd())
 
 
 def read_cfg_file(cfg_filename: str = 'configs.json'):
@@ -30,7 +42,10 @@ def read_cfg_file(cfg_filename: str = 'configs.json'):
     if not exists(cfg_filename): 
         cfg_filename = join('data', 'settings', cfg_filename)
 
-    assert exists(cfg_filename), 'inserted cfg_filename does not exist (in data/settings)'
+    if not exists(cfg_filename): set_workingdirectory(goal_path='ReTap')
+    cfg_filename = join(os.getcwd(), cfg_filename)
+    
+    assert exists(cfg_filename), 'cfg_filename not (in data/settings)'
     
     with open(cfg_filename, 'r') as json_data:
         cfg = json.load(json_data)
@@ -38,12 +53,19 @@ def read_cfg_file(cfg_filename: str = 'configs.json'):
     return cfg
 
 
-def get_directories_from_cfg(cfg_filename = 'default'):
+def get_directories_from_cfg(cfg_filename = 'default',):
+    """
+    Input:
+        - cfg_filename: defaults to configs.jsons in read_cfg_file()
+            insert custom name if used
+    
+    Returns:
+        - paths: dict containing 'raw', 'results' and 'figures' folders
+    """
     # use either default (configs.json) or custom inserted filename
     if cfg_filename == 'default': cfg = read_cfg_file()
     else: cfg = read_cfg_file(cfg_filename)
 
-    print(cfg)
     paths = {}
     if cfg['main_directory']:
         assert exists(cfg['main_directory']), ('Main directory in config_json: '

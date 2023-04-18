@@ -6,32 +6,30 @@ from command line
 
 
 # import public packages
-from os import listdir, makedirs
+import sys
+from os import listdir, makedirs, getcwd
 from os.path import join, splitext, exists
 from dataclasses import field, dataclass
-from typing import List
-import numpy as np
-from array import array
-from typing import Any
+
 from scipy.signal import resample_poly
 
 
 # import own functions
-from utils import data_management, tmsi_poly5reader
+from utils import data_management
+import utils.tmsi_poly5reader as poly5_reader
 import preprocessing.finding_blocks as find_blocks
-from preprocessing.single_block_preprocessing import run_preproc_acc
+from preprocessing.single_block_preprocessing import preprocess_acc
 
 
 @dataclass(init=True, repr=True)
-class rawAccData:
+class ProcessRawAccData:
     """
     Function to process 
     """
-    # raw_path: str
-    # joker_string: Any = None
     goal_fs: int = 250
     cfg_filename: str = 'configs.json'
-    STORE_CSV=True  # NOT SAVING AT THE MOMENT
+    STORE_CSV: bool = True  # NOT SAVING AT THE MOMENT
+    OVERWRITE: bool = True
     feasible_extensions: list = field(default_factory=lambda: ['.Poly5', 'csv'])
     unilateral_coding_list: list = field(
         default_factory=lambda: [
@@ -41,11 +39,13 @@ class rawAccData:
             
         ]
     )
+    current_trace_list : list = field(default_factory=lambda: [])
     
 
     def __post_init__(self,):
         # IDENTIFY FILES TO PROCESS
-        raw_path = data_management.get_directories_from_cfg(self.cfg_filename)['raw']
+        paths = data_management.get_directories_from_cfg(self.cfg_filename)
+        raw_path = paths['raw']
         sel_files = listdir(raw_path)
 
         print(f'files selected from {raw_path}: {sel_files}')
@@ -62,7 +62,8 @@ class rawAccData:
 
             # LOAD FILE
             if splitext(f)[1] == '.Poly5':
-                self.raw = tmsi_poly5reader.Poly5Reader(join(raw_path, f))
+                self.raw = poly5_reader.Poly5Reader(join(raw_path, f))
+                fs = self.raw.sample_rate
                 # set hand-code to bilateral (default)
                 hand_code = 'bilat'
                 # check if file contains unilateral data
@@ -91,7 +92,10 @@ class rawAccData:
                 #     data=self.raw.samples,
                 #     key_indices=key_ind_dict,
                 # )
+                # include fs=..
             
+            # create TRACE CODE based on filename
+            TRACE_CODE = splitext(f)[0]
 
             for acc_side in vars(file_data_class).keys():
                 # skip attr in class not representing acc-side
@@ -115,25 +119,19 @@ class rawAccData:
                 else:  # files recorded unilateral
                     save_side = acc_side[0].upper()
 
-                # PREPROCESS
+                # define paths and naming
+                blocks_fig_path = join(paths['figures'],
+                                       'block_detection_submission')
+                blocks_csv_path = join(paths['results'],
+                                       'extracted_tapblocks')
+                csv_fname = f'{TRACE_CODE}_{acc_side}'
 
-                # resample if necessary
-                if not self.raw.sample_rate >= self.goal_fs:
-                    print(f'Sampling Frequency should be >= {self.goal_fs} Hz'
-                          f', file ({f}) skipped')
+                ### PREPROCESS ###
                 
-                if self.raw.sample_rate > self.goal_fs:
-                    resampled = resample_poly(
-                        x=getattr(file_data_class, acc_side),
-                        up=1, axis=-1,
-                        down=int(self.raw.sample_rate / self.goal_fs), 
-                    )
-                    setattr(file_data_class, acc_side, resampled)
-                
-                # preprocess data in class
-                procsd_arr, _ = run_preproc_acc(
+                procsd_arr, _ = preprocess_acc(
                     dat_arr=getattr(file_data_class, acc_side),
-                    fs=self.goal_fs,
+                    fs=fs,
+                    fs_goal=self.goal_fs,
                     to_detrend=True,
                     to_check_magnOrder=True,
                     to_check_polarity=True,
@@ -144,15 +142,6 @@ class rawAccData:
 
                 self.data = file_data_class  # store in class to work with in notebook
 
-                blocks_fig_path = join(
-                    data_management.get_directories_from_cfg('figures'),
-                    'block_detection_submission'
-                )
-                blocks_csv_path = join(
-                    data_management.get_directories_from_cfg('results'),
-                    'extracted_tapblocks'
-                )
-
                 temp_acc, temp_ind = find_blocks.find_active_blocks(
                     acc_arr=getattr(file_data_class, acc_side),
                     fs=self.goal_fs,
@@ -160,16 +149,13 @@ class rawAccData:
                     to_plot=True,
                     plot_orig_fname=f,
                     figsave_dir=blocks_fig_path,
-                    figsave_name=(
-                        f'{self.sub}_{self.state}_'
-                        f'{save_side}_blocks_detected'
-                    ),
+                    figsave_name=(f'{TRACE_CODE}_'
+                                  f'{acc_side}_blocks_detected'),
                     to_store_csv=self.STORE_CSV,
                     csv_dir=blocks_csv_path,
-                    # csv_fname=f'{self.sub_csv_code}{self.sub}_'
-                    #           f'{self.state}_{save_side}',
-                    #           # save_side replaced acc_side[0].upper() to correct for swapped acc-sides
+                    csv_fname=csv_fname,
                 )
+                self.current_trace_list.append(csv_fname)
 
 
 

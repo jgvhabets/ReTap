@@ -52,10 +52,6 @@ def find_active_blocks(
     """
     sig = signalvectormagn(acc_arr)
     thresh = np.nanstd(sig) * .5
-    print(
-        f'\n\nACT THRESH. {thresh}\n\n'
-    )
-
     winl = int(fs / blocks_p_sec)
 
     # activity per window (acc > std.dev)
@@ -105,7 +101,7 @@ def find_active_blocks(
     )
 
     if verbose: report_detected_blocks(block_indices, fs)
-    print(f'\n\n# BLOCKS {len(acc_arr)}')
+
     if to_plot: plot_blocks(
         acc_arr, block_indices, fs, 
         figsave_dir, figsave_name,
@@ -283,8 +279,6 @@ def select_on_block_length(
             if i not in to_del
         ]
     
-    print(f'deleted blocks: {to_del}')
-
     return sel_blocks, sel_indices
 
 
