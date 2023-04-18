@@ -131,7 +131,7 @@ class ProcessRawAccData:
                 procsd_arr, _ = preprocess_acc(
                     dat_arr=getattr(file_data_class, acc_side),
                     fs=fs,
-                    fs_goal=self.goal_fs,
+                    goal_fs=self.goal_fs,
                     to_detrend=True,
                     to_check_magnOrder=True,
                     to_check_polarity=True,

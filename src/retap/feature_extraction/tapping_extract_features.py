@@ -14,9 +14,9 @@ import numpy as np
 from dataclasses import dataclass, field
 
 # Import own custom functions
-import tap_extract_fts.tapping_featureset as tap_feats
-import tap_extract_fts.tapping_postFeatExtr_calc as postExtrCalc
-from tap_load_data.tapping_preprocess import find_main_axis, remove_acc_nans
+import feature_extraction.kinematic_features as tap_feats
+# import tap_extract_fts.tapping_postFeatExtr_calc as postExtrCalc
+from preprocessing.single_block_preprocessing import find_main_axis, remove_acc_nans
 
 
 @dataclass(init=True, repr=True, )

@@ -42,6 +42,7 @@ def preprocess_acc(
     if fs > goal_fs:
         dat_arr = resample_poly(x=dat_arr, up=1, axis=-1,
             down=int(fs / goal_fs), )
+        fs = goal_fs  # correct fs
         
     main_ax_index = find_main_axis(dat_arr, method=main_axis_method,)
 
