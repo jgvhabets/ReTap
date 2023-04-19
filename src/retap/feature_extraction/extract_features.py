@@ -11,7 +11,6 @@ from feature_extraction.feat_extraction_classes import singleTrace
 def run_ft_extraction(
     acc_block_names,
     cfg_filename='configs.json',
-    save_fts_pickled=False,
 ):
     """
     Perform feature extraction
@@ -28,7 +27,9 @@ def run_ft_extraction(
         if not f_in_names: continue
         # if filename corresponds to one of the trace names
         trace = singleTrace(join(tap_block_path, f))
-        trace_key = splitext(f)[0]
+        trace_key = splitext(f)[0]  # take trace name
+        if trace_key.endswith('_250Hz'): trace_key = trace_key[:-6]
+
         feats_out[trace_key] = trace.fts
 
         # save features as json

@@ -9,7 +9,9 @@ from command line
 from os import listdir, makedirs, getcwd
 from os.path import join, splitext, exists
 from dataclasses import field, dataclass
-from typing import Any
+from typing import Any, Dict
+from collections import defaultdict
+from numpy import ndarray
 
 # import own functions
 from utils import data_management
@@ -28,7 +30,7 @@ class ProcessRawAccData:
     use_single_file: Any = None
     STORE_CSV: bool = True
     OVERWRITE: bool = True
-    feasible_extensions: list = field(default_factory=lambda: ['.Poly5', 'csv'])
+    feasible_extensions: list = field(default_factory=lambda: ['.Poly5', '.csv'])
     unilateral_coding_list: list = field(
         default_factory=lambda: [
             'LHAND', 'RHAND',
@@ -82,7 +84,7 @@ class ProcessRawAccData:
                     continue
 
                 # select present acc (aux) variables
-                file_data_class = data_management.triAxial(
+                file_data_class = triAxial(
                     data=self.raw.samples,
                     key_indices=key_ind_dict,
                 )
@@ -139,6 +141,7 @@ class ProcessRawAccData:
                     to_check_magnOrder=True,
                     to_check_polarity=True,
                     to_remove_outlier=True,
+                    verbose=False,
                 )
                 # replace arr in class with processed data
                 setattr(file_data_class, acc_side, procsd_arr)
@@ -163,4 +166,35 @@ class ProcessRawAccData:
 
 
 
+@dataclass(init=True, repr=True)
+class triAxial:
+    """
+    Select accelerometer keys
+
+    TODO: add Cfg variable to indicate
+    user-specific accelerometer-key
+    """
+    data: ndarray
+    key_indices: Dict[str, int] = field(
+        default_factory=lambda: defaultdict(lambda: {
+        'L_X': 0, 'L_Z': 2, 'R_X': 3, 'R_Z': 5}
+    ))
+
+    def __post_init__(self,):
+
+        try:
+            self.left = self.data[
+                self.key_indices['L_X']:
+                self.key_indices['L_Z'] + 1  # +1 to include last index while slicing
+            ]
+        except KeyError:
+            print('No left indices')
+
+        try:
+            self.right = self.data[
+                self.key_indices['R_X']:
+                self.key_indices['R_Z'] + 1
+            ]
+        except KeyError:
+            print('No right indices')
     

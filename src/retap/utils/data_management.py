@@ -11,11 +11,8 @@ import sys
 import json
 from pandas import read_excel
 import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict
-from collections import defaultdict
-from array import array
 import pickle
+from joblib import load
 
 
 def set_workingdirectory(goal_path='retap'):
@@ -93,6 +90,23 @@ def get_directories_from_cfg(cfg_filename = 'default',):
 
     return paths
     
+
+def load_clf_model(clf_fname: str = 'ReTap_RF_15taps.P'):
+    """
+    Reads classifier for prediction.
+    File should be in ReTap/data/models.
+    """
+    print(os.getcwd())
+    # check json filetype, and add if extension is missing
+    assert splitext(clf_fname)[1] == '.P', 'clf_model should be pickle'
+    # check existence of file
+    set_workingdirectory(goal_path='ReTap')
+    clf_path = join('data', 'models', clf_fname)
+    assert exists(clf_path), 'clf_model not found in ReTap/data/models'
+
+    clf = load(clf_path)
+
+    return clf
 
 
 def get_unique_subs(path):
@@ -199,39 +213,6 @@ def get_arr_key_indices(ch_names, hand_code, cfg_fname=None):
             aux_count += 1
 
     return dict_out, file_side
-
-
-@dataclass(init=True, repr=True)
-class triAxial:
-    """
-    Select accelerometer keys
-
-    TODO: add Cfg variable to indicate
-    user-specific accelerometer-key
-    """
-    data: array
-    key_indices: Dict[str, int] = field(
-        default_factory=lambda: defaultdict(lambda: {
-        'L_X': 0, 'L_Z': 2, 'R_X': 3, 'R_Z': 5}
-    ))
-
-    def __post_init__(self,):
-
-        try:
-            self.left = self.data[
-                self.key_indices['L_X']:
-                self.key_indices['L_Z'] + 1  # +1 to include last index while slicing
-            ]
-        except KeyError:
-            print('No left indices')
-
-        try:
-            self.right = self.data[
-                self.key_indices['R_X']:
-                self.key_indices['R_Z'] + 1
-            ]
-        except KeyError:
-            print('No right indices')
 
 
 def save_class_pickle(

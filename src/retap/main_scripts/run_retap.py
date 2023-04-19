@@ -10,6 +10,7 @@ import os
 from preprocessing import process_raw_acc
 from feature_extraction import feat_extraction_classes as ftClasses
 from feature_extraction.extract_features import run_ft_extraction
+from prediction import predict_score
 
 def main_retap_functionality(cfg_filename='config_jh.json',
                              single_file=None):
@@ -26,9 +27,13 @@ def main_retap_functionality(cfg_filename='config_jh.json',
     # Part 2 and 3: detect single taps and feature extraction
     fts = run_ft_extraction(acc_block_names=rawAcc.current_trace_list,
                       cfg_filename=cfg_filename,)
-    print(fts.keys())
-    # Part 4: create predicted UPDRS Item 3.4 score
 
+    # Part 4: create predicted UPDRS Item 3.4 score
+    predict_score.predict_tap_score()
+
+    # TODO: import classifier
+    # create X array with features
+    # predict and save
 
     return 'retap ran succesfully'
 
