@@ -9,9 +9,10 @@ import os
 # import retap's functions
 from preprocessing import process_raw_acc
 from feature_extraction import feat_extraction_classes as ftClasses
-from feature_extraction.run_feat_extract import run_ft_extraction
+from feature_extraction.extract_features import run_ft_extraction
 
-def main_retap_functionality(cfg_filename='config_jh.json'):
+def main_retap_functionality(cfg_filename='config_jh.json',
+                             single_file=None):
     """
     Function that runs ReTap algorithm parts, will
     be ran both in command-line as in notebook use.
@@ -19,16 +20,17 @@ def main_retap_functionality(cfg_filename='config_jh.json'):
     # Part 1: load raw-ACC and detect-active blocks
     rawAcc = process_raw_acc.ProcessRawAccData(
         cfg_filename=cfg_filename,
+        use_single_file=single_file,
     )
 
     # Part 2 and 3: detect single taps and feature extraction
-    run_ft_extraction(sel_acc_blocks=rawAcc.current_trace_list,
+    fts = run_ft_extraction(acc_block_names=rawAcc.current_trace_list,
                       cfg_filename=cfg_filename,)
-
+    print(fts.keys())
     # Part 4: create predicted UPDRS Item 3.4 score
 
 
-    return 'retap functionality'
+    return 'retap ran succesfully'
 
 # function runs when directly called from command line
 if __name__ == '__main__':
@@ -41,7 +43,17 @@ if __name__ == '__main__':
     To be called on WIN (e.g. from ReTap working directory):
         python -m src.retap.main_scripts.run_retap
     """
-    # call function with all ReTap functionality
-    main_retap_functionality()
+    # if single filename given
+    if len(sys.argv) == 2:
+        file_sel = sys.argv[1]
+        print(f'ReTap performed on file: {file_sel}')
+        main_retap_functionality(single_file=file_sel)
+    
+    
+    # otherwise use all files in designated folder
+    else:
+        # call function with all ReTap functionality
+        print('DO ALL AVAILABLE DATA')
+        main_retap_functionality()
     
 

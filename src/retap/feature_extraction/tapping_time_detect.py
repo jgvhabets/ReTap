@@ -61,6 +61,10 @@ def find_tap_timings(acc_triax, fs: int,):
     posThr = np.nanmean(sig)
     negThr = -np.nanmean(sig)
     
+    # Find peaks to help movement detection
+    peaksettings = {'peak_dist': 0.1,
+                    'cutoff_time': .25,}
+    
     posPeaks = find_peaks(
         sig,
         height=(posThr, np.nanmax(sig)),
@@ -72,10 +76,7 @@ def find_tap_timings(acc_triax, fs: int,):
         distance=fs * peaksettings['peak_dist'] * .5,
         prominence=abs(np.nanmin(sig)) * .05,
     )[0]
-
-    # Find peaks to help movement detection
-    peaksettings = {'peak_dist': 0.1,
-                    'cutoff_time': .25,}
+    
     # use svm for impact finding
     svm = signalvectormagn(acc_triax)
     impacts = find_impacts(svm, fs)  # svm-impacts are more robust, regardless of main ax

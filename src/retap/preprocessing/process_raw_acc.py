@@ -6,13 +6,10 @@ from command line
 
 
 # import public packages
-import sys
 from os import listdir, makedirs, getcwd
 from os.path import join, splitext, exists
 from dataclasses import field, dataclass
-
-from scipy.signal import resample_poly
-
+from typing import Any
 
 # import own functions
 from utils import data_management
@@ -28,7 +25,8 @@ class ProcessRawAccData:
     """
     goal_fs: int = 250
     cfg_filename: str = 'configs.json'
-    STORE_CSV: bool = True  # NOT SAVING AT THE MOMENT
+    use_single_file: Any = None
+    STORE_CSV: bool = True
     OVERWRITE: bool = True
     feasible_extensions: list = field(default_factory=lambda: ['.Poly5', 'csv'])
     unilateral_coding_list: list = field(
@@ -45,10 +43,15 @@ class ProcessRawAccData:
     def __post_init__(self,):
         # IDENTIFY FILES TO PROCESS
         paths = data_management.get_directories_from_cfg(self.cfg_filename)
-        raw_path = paths['raw']
-        sel_files = listdir(raw_path)
+        # use given file
+        if self.use_single_file:
+            sel_files = [self.use_single_file,]
+        # default consider all files in raw data path
+        else:
+            raw_path = paths['raw']
+            sel_files = listdir(raw_path)
 
-        print(f'files selected from {raw_path}: {sel_files}')
+            print(f'files selected from {raw_path}: {sel_files}')
         
         # Abort if not file found
         if len(sel_files) == 0:
