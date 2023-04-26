@@ -60,7 +60,7 @@ if __name__ == '__main__':
     # otherwise use all files in designated folder
     else:
         # call function with all ReTap functionality
-        print('DO ALL AVAILABLE DATA')
+        print('PROCESS ALL AVAILABLE DATA')
         main_retap_functionality()
     
 

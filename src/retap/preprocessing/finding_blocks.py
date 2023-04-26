@@ -357,54 +357,31 @@ def plot_blocks(
         block_indices['start'], block_indices['end']
     ):
         ax.fill_betweenx(
-            y=np.arange(2.5,3.1,.5),
+            y=np.arange(max(acc_arr[mainax]),max(acc_arr[mainax])+.5,.5),
             x1=pos1, x2=pos2,
             color='red', alpha=.3,
             label='detected tapping blocks')
-        xticks = np.arange(0, len(acc_arr[mainax]), fs*15)
+        xticks = np.arange(0, len(acc_arr[mainax]), fs*30)
         ax.set_xticks(xticks)
         ax.set_xticklabels((xticks/fs).astype(int), fontsize=fontsize)
         ax.set_xlabel(f'Time (seconds)', fontsize=fontsize)
         ax.set_ylabel('Acceleration (g)', fontsize=fontsize)
         ax.set_title(figsave_name, size=fontsize)
-        # manuscript plot
-        if np.logical_or(figsave_name.startswith('056_M1S0_L'),
-                     figsave_name.startswith('026_M0S0_R')):      
-            if figsave_name.startswith('026_M0S0_R'):
-                x_start = block_indices['start'][0] - (fs * 10)
-                x_stop = block_indices['end'][-1] + (fs * 10)
-            elif figsave_name.startswith('056_M1S0_L'):
-                x_start = block_indices['start'][2] - (fs * 10)
-                x_stop = block_indices['end'][-1] + (fs * 10)
-            ax.set_xlim(x_start, x_stop)
-            xticks = np.arange(x_start, x_stop, fs*10)
-            ax.set_xticks(xticks)
-            ticklabels = (xticks/fs) - (x_start/fs)
-            ax.set_xticklabels(ticklabels.astype(int), fontsize=fontsize)
-            ax.set_ylim(-2, 3.3)
-
-
-
+        
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
-    plt.legend(
-        by_label.values(), by_label.keys(),
-        frameon=False, fontsize=fontsize,
-        ncol=4, loc='lower center'
-    )
+    plt.legend(by_label.values(), by_label.keys(),
+               frameon=False, fontsize=fontsize,
+               ncol=4, loc='lower center')
 
     if len(plot_orig_fname) > 1:
-        plt.suptitle(
-            plot_orig_fname, x=.05, y=.97,
-            ha='left', size=fontsize,
-            color='gray', alpha=.8,)
+        plt.suptitle(plot_orig_fname, x=.05, y=.97,
+                     ha='left', size=fontsize,
+                     color='gray', alpha=.8,)
 
     plt.tick_params(axis='both', labelsize=fontsize,
                     size=fontsize,)
     plt.tight_layout()
-    plt.savefig(
-        join(figsave_dir, figsave_name + '.pdf'),
-        format='pdf',
-        dpi=450, facecolor='w',
-    )
+    plt.savefig(join(figsave_dir, figsave_name + '.pdf'),
+                format='pdf', dpi=450, facecolor='w',)
     plt.close()

@@ -19,6 +19,6 @@ if not retap_in_sys_path:
         os.chdir(wd)  # set wd to retap
 
     sys.path.append(os.getcwd())
-    print('REPO/src/retap added to SYS PATH')
+    # print('REPO/src/retap added to SYS PATH')
 
     

@@ -3,8 +3,6 @@ Run finding and splitting blocks of 10-seconds
 from command line
 """
 
-
-
 # import public packages
 from os import listdir, makedirs, getcwd
 from os.path import join, splitext, exists
@@ -124,8 +122,8 @@ class ProcessRawAccData:
                                        'extracted_tapblocks')
                 csv_fname = f'{TRACE_CODE}_{acc_side}'
 
+
                 ### PREPROCESS ###
-                
                 procsd_arr, _ = preprocess_acc(
                     dat_arr=getattr(file_data_class, acc_side),
                     fs=fs,

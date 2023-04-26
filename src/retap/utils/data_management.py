@@ -96,7 +96,6 @@ def load_clf_model(clf_fname: str = 'ReTap_RF_15taps.P'):
     Reads classifier for prediction.
     File should be in ReTap/data/models.
     """
-    print(os.getcwd())
     # check json filetype, and add if extension is missing
     assert splitext(clf_fname)[1] == '.P', 'clf_model should be pickle'
     # check existence of file

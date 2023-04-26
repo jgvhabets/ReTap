@@ -12,7 +12,22 @@ import datetime as dt
 from utils import data_management
 
 
-def predict_tap_score(feats, cfg_filename, verbose=False):
+def predict_tap_score(
+    feats: dict, cfg_filename: str, n_taps_3: int = 9,
+    verbose: bool = False
+):
+    """
+    Function to generate predictions for included
+    tapping blocks
+
+    Input:
+        - feats (dict): containing feat-class per
+            trace
+        - cfg_filename (str): settings json filename
+        - n_taps_3 (int): if a trace contains less
+            detected taps than this number, the trace
+            will be predicted as a 3
+    """
     # load settings for model name and feature list
     settings = data_management.read_cfg_file(cfg_filename=cfg_filename)
     # load classifier, saved as pickle
@@ -31,8 +46,21 @@ def predict_tap_score(feats, cfg_filename, verbose=False):
 
     # perform tap-score prediction for every tapping-block included
     for block_name in feats.keys():
+
+        block_fts = feats[block_name]  # take fts-class for block
+
+        # check number of taps present
+        if len(block_fts.tap_lists) < n_taps_3:
+            pred_score = 3
+            preds_out.append(pred_score)
+
+            if verbose: print(f'Predicted tap score ({block_name}):'
+                              f' {pred_score} (based on n-taps)')
+            continue
+        
+        # predict block using classification
         input_X = []
-        block_fts = feats[block_name]
+        
         # prepare X vector for prediction (add features in correct order)
         for ft_name in X_ft_list:
             try:
@@ -45,10 +73,11 @@ def predict_tap_score(feats, cfg_filename, verbose=False):
         )
         input_X = atleast_2d(input_X)
         # predict tap score
-        pred_score = clf.predict(input_X)
+        pred_score = clf.predict(input_X)[0]
+                    
+        preds_out.append(pred_score.astype(int))
 
         if verbose: print(f'Predicted tap score ({block_name}): {pred_score}')
-        preds_out.append(pred_score)
     
     # create filename to store predictions,
     # includes date and does not overwrite existing files
