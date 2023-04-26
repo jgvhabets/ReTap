@@ -137,15 +137,17 @@ def remove_outlier(
     if verbose: print(
         f'{np.sum(outliers)} outlier-timepoints to remove'
     )
-    remove_i = np.zeros_like((main_ax))
+    
     # create boolean to remove
-    for i, outl in enumerate(outliers):
-        if outl:
-            i_start = i - halfBuff
-            if i_start < 0: i_start = 0
-            remove_i[
-                i_start:i + halfBuff
-            ] = [1] * 2 * halfBuff
+    remove_i = np.zeros_like((main_ax))  # boolean array to indicate removal
+    idx_arr = np.arange(len(remove_i))  # use idx arr to create masks
+    for i, outl in enumerate(outliers):  # loop over outlier boolean
+        if not outl: continue
+        # set remove_i to True for buffer range around outlier index
+        remove_mask = np.logical_and(idx_arr > (i - halfBuff),
+                                     idx_arr < (i + halfBuff))
+        assert sum(remove_mask) <= 2*halfBuff
+        remove_i[remove_mask] = 1
 
     # replace with nan
     dat_arr[:, remove_i.astype(bool)] = np.nan

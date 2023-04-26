@@ -13,5 +13,22 @@
         "CUSTOM_R_X": "R_X",
         "CUSTOM_R_Y": "R_Y",
         "CUSTOM_R_Z": "R_Z"
-    }
+    },
+    "clf_model_filename": "ReTap_RF_15taps.P",
+    "clf_input_features": [
+        "trace_RMSn",
+        "trace_entropy",
+        "jerkiness_trace",
+        "coefVar_intraTapInt",
+        "slope_intraTapInt",
+        "mean_tapRMS",
+        "coefVar_tapRMS",
+        "mean_impactRMS",
+        "coefVar_impactRMS",
+        "slope_impactRMS",
+        "mean_raise_velocity",
+        "coefVar_raise_velocity",
+        "coefVar_tap_entropy",
+        "slope_tap_entropy"
+    ]
 }

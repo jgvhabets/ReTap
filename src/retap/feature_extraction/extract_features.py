@@ -8,10 +8,8 @@ from numpy import ndarray, int64, float64
 from utils.data_management import get_directories_from_cfg, save_class_pickle
 from feature_extraction.feat_extraction_classes import singleTrace  
 #  FeatureSet, check later # mandatory for pickle import
-def run_ft_extraction(
-    acc_block_names,
-    cfg_filename='configs.json',
-):
+def run_ft_extraction(acc_block_names, cfg_filename='configs.json',
+                      verbose=False,):
     """
     Perform feature extraction
     """

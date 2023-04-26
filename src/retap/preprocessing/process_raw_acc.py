@@ -23,7 +23,13 @@ from preprocessing.single_block_preprocessing import preprocess_acc
 @dataclass(init=True, repr=True)
 class ProcessRawAccData:
     """
-    Function to process 
+    Function to process raw accelerometer traces
+
+    Input:
+
+    Raises:
+        - ValueError if hand-side (left or right) is not
+            defined in neither filename or channelnames
     """
     goal_fs: int = 250
     cfg_filename: str = 'configs.json'
@@ -40,6 +46,7 @@ class ProcessRawAccData:
         ]
     )
     current_trace_list : list = field(default_factory=lambda: [])
+    verbose: bool = False
     
 
     def __post_init__(self,):
@@ -53,16 +60,16 @@ class ProcessRawAccData:
             raw_path = paths['raw']
             sel_files = listdir(raw_path)
 
-            print(f'files selected from {raw_path}: {sel_files}')
+            if self.verbose: print(f'files selected from {raw_path}: {sel_files}')
         
         # Abort if not file found
         if len(sel_files) == 0:
-            return print(f'ABORTED, no files found in {raw_path}')
+            return print(f'WARNING: ABORTED, no files found in {raw_path}')
 
         for f in sel_files:
             # check if extension is supported
             if splitext(f)[1] not in self.feasible_extensions:
-                print(f'File ({f}) skipped, extension not supported')
+                print(f'WARNING: File ({f}) skipped, extension not supported')
                 continue
 
             # LOAD FILE
@@ -77,10 +84,10 @@ class ProcessRawAccData:
                         hand_code = code.upper()
 
                 key_ind_dict, file_side = data_management.get_arr_key_indices(
-                    self.raw.ch_names, hand_code
+                    self.raw.ch_names, hand_code, filename=f,
                 )
                 if len(key_ind_dict) == 0:
-                    print(f'No ACC-keys found in keys: {self.raw.ch_names}')
+                    print(f'WARNING: No ACC-keys found in keys: {self.raw.ch_names}')
                     continue
 
                 # select present acc (aux) variables
@@ -108,25 +115,11 @@ class ProcessRawAccData:
                 
                 # prevent left-calculations on right-files and viaversa
                 if hand_code != 'bilat':
-                    if acc_side != file_side:
-                        if self.sub not in self.switched_sides:
-                            continue
-                        else:  # go on w/ non-matching sides, but invert sides for naming of csv's and plots
-                            if acc_side == 'left': save_side = 'R'
-                            elif acc_side == 'right': save_side = 'L'
-                            f = f + '*'
-                    else:
-                        if self.sub in self.switched_sides:
-                            continue
-                        else:  # matching sides, correct left-right acc-sides
-                            save_side = acc_side[0].upper()
-                
-                else:  # files recorded unilateral
-                    save_side = acc_side[0].upper()
+                    if acc_side != file_side: continue
 
                 # define paths and naming
                 blocks_fig_path = join(paths['figures'],
-                                       'block_detection_submission')
+                                       'block_detection')
                 blocks_csv_path = join(paths['results'],
                                        'extracted_tapblocks')
                 csv_fname = f'{TRACE_CODE}_{acc_side}'
@@ -141,7 +134,7 @@ class ProcessRawAccData:
                     to_check_magnOrder=True,
                     to_check_polarity=True,
                     to_remove_outlier=True,
-                    verbose=False,
+                    verbose=self.verbose,
                 )
                 # replace arr in class with processed data
                 setattr(file_data_class, acc_side, procsd_arr)
@@ -151,7 +144,7 @@ class ProcessRawAccData:
                 temp_acc, temp_ind = find_blocks.find_active_blocks(
                     acc_arr=getattr(file_data_class, acc_side),
                     fs=self.goal_fs,
-                    verbose=True,
+                    verbose=self.verbose,
                     to_plot=True,
                     plot_orig_fname=f,
                     figsave_dir=blocks_fig_path,
@@ -188,7 +181,7 @@ class triAxial:
                 self.key_indices['L_Z'] + 1  # +1 to include last index while slicing
             ]
         except KeyError:
-            print('No left indices')
+            print('WARNING: No left indices')
 
         try:
             self.right = self.data[
@@ -196,5 +189,5 @@ class triAxial:
                 self.key_indices['R_Z'] + 1
             ]
         except KeyError:
-            print('No right indices')
+            print('WARNING: No right indices')
     

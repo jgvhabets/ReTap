@@ -109,7 +109,7 @@ def find_active_blocks(
     )
 
     if to_store_csv: save_block_csv(
-        acc_blocks, fs, csv_dir, csv_fname,
+        acc_blocks, fs, csv_dir, csv_fname, verbose=verbose
     )
 
     return acc_blocks, block_indices
@@ -282,7 +282,7 @@ def select_on_block_length(
     return sel_blocks, sel_indices
 
 
-def report_detected_blocks(block_indices, fs):
+def report_detected_blocks(block_indices, fs, verbose=True):
     """
     Report on detected block number and lengths, takes
     block_indices after conversion to sample-indices
@@ -295,12 +295,12 @@ def report_detected_blocks(block_indices, fs):
             block_indices['start'][b]) / fs
         )
 
-    print(f'# {len(block_lengths)} tapping blocks detec'
+    if verbose: print(f'# {len(block_lengths)} tapping blocks detec'
             f'ted, lengths (in sec): {block_lengths}')
 
 
 def save_block_csv(
-    acc_blocks, fs, csv_dir, csv_fname,
+    acc_blocks, fs, csv_dir, csv_fname, verbose=True
 ):
     """
     Store csv-files per blocks
@@ -317,7 +317,7 @@ def save_block_csv(
 
         storeData.to_csv(join(csv_dir, fname), index=False)
 
-        print(f'saved block {n}: {fname} @ {csv_dir}')
+        if verbose: print(f'saved block {n}: {fname} @ {csv_dir}')
 
 
 def plot_blocks(

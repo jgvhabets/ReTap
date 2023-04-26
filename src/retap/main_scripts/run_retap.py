@@ -13,7 +13,8 @@ from feature_extraction.extract_features import run_ft_extraction
 from prediction import predict_score
 
 def main_retap_functionality(cfg_filename='config_jh.json',
-                             single_file=None):
+                             single_file=None,
+                             verbose=False):
     """
     Function that runs ReTap algorithm parts, will
     be ran both in command-line as in notebook use.
@@ -22,20 +23,21 @@ def main_retap_functionality(cfg_filename='config_jh.json',
     rawAcc = process_raw_acc.ProcessRawAccData(
         cfg_filename=cfg_filename,
         use_single_file=single_file,
+        verbose=verbose
     )
 
     # Part 2 and 3: detect single taps and feature extraction
     fts = run_ft_extraction(acc_block_names=rawAcc.current_trace_list,
-                      cfg_filename=cfg_filename,)
+                            cfg_filename=cfg_filename,
+                            verbose=verbose)
 
     # Part 4: create predicted UPDRS Item 3.4 score
-    predict_score.predict_tap_score()
-
-    # TODO: import classifier
-    # create X array with features
-    # predict and save
+    predict_score.predict_tap_score(feats=fts, cfg_filename=cfg_filename,
+                                    verbose=verbose)
 
     return 'retap ran succesfully'
+
+
 
 # function runs when directly called from command line
 if __name__ == '__main__':

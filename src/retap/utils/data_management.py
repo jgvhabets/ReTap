@@ -148,7 +148,8 @@ def get_file_selection(
     return sel_files
 
 
-def get_arr_key_indices(ch_names, hand_code, cfg_fname=None):
+def get_arr_key_indices(ch_names, hand_code, cfg_fname=None,
+                        filename=None):
     """
     creates dict with acc-keynames and indices
 
@@ -203,12 +204,15 @@ def get_arr_key_indices(ch_names, hand_code, cfg_fname=None):
                 dict_out[f'R_{key}'] = i
         
         elif 'aux' in key.lower():
-
+            # assuming that 3 aux-channels are present, and contain resp. x, y, z
+            
             if 'iso' in key.lower(): continue  # ISO is no ACC-channel in TMSi
 
             if 'L' in hand_code: aux_keys = ['L_X', 'L_Y', 'L_Z']
             elif 'R' in hand_code: aux_keys = ['R_X', 'R_Y', 'R_Z']
-
+            else: raise ValueError('Laterality of tapping hand is not defined'
+                                   f' in filename, nor in channel-name for {filename}')
+                
             dict_out[aux_keys[aux_count]] = i
             aux_count += 1
 
