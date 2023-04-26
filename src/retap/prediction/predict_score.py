@@ -5,7 +5,7 @@ Perform UPDRS Item 3.4 prediction within ReTap
 # import functions and packages
 from os.path import join, exists
 from os import makedirs
-from numpy import atleast_2d
+from numpy import atleast_2d, float64, isnan, nan
 from pandas import DataFrame
 import datetime as dt
 
@@ -71,7 +71,11 @@ def predict_tap_score(
         assert len(input_X) == len(X_ft_list), (
             f'NOT ALL FEATURES FOUND FOR {block_name}, {len(X_ft_list)-len(input_X)} missing'
         )
-        input_X = atleast_2d(input_X)
+        input_X = atleast_2d(input_X).astype(float64)
+        if isnan(input_X).any(): 
+            print(f'{block_name} features contained NaNs')
+            preds_out.append(nan)
+            continue
         # predict tap score
         pred_score = clf.predict(input_X)[0]
                     

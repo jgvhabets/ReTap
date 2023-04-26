@@ -44,13 +44,40 @@ class singleTrace:
     def __post_init__(self,):
         # load and store tri-axial ACC-signal
         if os.path.splitext(self.filepath)[1] == '.csv':
-            acc_data = read_csv(self.filepath, index_col=False)
-            # delete index col without heading if present
-            if 'Unnamed: 0' in acc_data.keys():
-                del(acc_data['Unnamed: 0'])
-                acc_data.to_csv(self.filepath, index=False)
+            try:
+                acc_data = read_csv(self.filepath, index_col=False,
+                                    delimiter=',')
+                if min(acc_data.shape) != 3:
+                    acc_data = read_csv(self.filepath, index_col=False,
+                                    delimiter='\t')
+                if min(acc_data.shape) != 3:
+                    acc_data = read_csv(self.filepath, index_col=False,
+                                    delimiter='\t', header=None)
+                if min(acc_data.shape) != 3:
+                    acc_data = read_csv(self.filepath, index_col=False,
+                                    delimiter=',', header=None)
 
-            acc_data = acc_data.values.T  # only np-array as acc-signal
+                # # delete index col without heading if present
+                # if 'Unnamed: 0' in acc_data.keys():
+                #     del(acc_data['Unnamed: 0'])
+                #     acc_data.to_csv(self.filepath, index=False)
+                # transform acc data
+                acc_data = acc_data.values.astype(np.float64)  # only np-array as acc-signal
+                if acc_data.shape[0] != 3: acc_data = acc_data.T
+                assert acc_data.shape[0] == 3, (
+                    f'must be triaxial ({acc_data.shape}), {self.filepath}'
+                )
+            
+            except ValueError:
+                acc_data = read_csv(self.filepath, index_col=False,
+                                    delimiter=',', header=None)
+                if max(acc_data.shape) < self.goal_fs:
+                    acc_data = read_csv(self.filepath, index_col=False,
+                                    delimiter='\t', header=None)
+                # transform acc data
+                acc_data = acc_data.values.astype(np.float64)  # only np-array as acc-signal
+                if acc_data.shape[0] != 3: acc_data = acc_data.T
+                assert acc_data.shape[0] == 3, 'must be triaxial'
 
         elif os.path.splitext(self.filepath)[1] == '.txt':
             acc_data = loadtxt(self.filepath, delimiter='\t')
@@ -84,6 +111,7 @@ class singleTrace:
         # Find Single Taps in Acc-trace
         tap_idx, impact_idx, _ = find_tap_timings(acc_triax=self.acc_sig,
                                                   fs=self.fs,)
+
         # # store taps and features in current Class
         # setattr(self, 'impact_idx', impact_idx)
         self.fts = tapFeatures(

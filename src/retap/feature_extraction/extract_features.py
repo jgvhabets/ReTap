@@ -7,9 +7,11 @@ from numpy import ndarray, int64, float64
 
 from utils.data_management import get_directories_from_cfg, save_class_pickle
 from feature_extraction.feat_extraction_classes import singleTrace  
-#  FeatureSet, check later # mandatory for pickle import
-def run_ft_extraction(acc_block_names, cfg_filename='configs.json',
-                      verbose=False,):
+
+
+def run_ft_extraction(
+    acc_block_names, cfg_filename='configs.json', verbose=True,
+):
     """
     Perform feature extraction
     """
@@ -21,8 +23,12 @@ def run_ft_extraction(acc_block_names, cfg_filename='configs.json',
     found_files = listdir(tap_block_path)
     # select only files from this itiration (defined by acc_block_names)
     for f in found_files:
+        
         f_in_names = any([f.startswith(n) for n in acc_block_names])
+        if 'cleanblock' in f:
+            f_in_names=True
         if not f_in_names: continue
+
         # if filename corresponds to one of the trace names
         trace = singleTrace(join(tap_block_path, f))
         trace_key = splitext(f)[0]  # take trace name

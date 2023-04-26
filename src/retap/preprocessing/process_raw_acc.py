@@ -9,7 +9,8 @@ from os.path import join, splitext, exists
 from dataclasses import field, dataclass
 from typing import Any, Dict
 from collections import defaultdict
-from numpy import ndarray
+from numpy import ndarray, array, float64
+from pandas import read_csv
 
 # import own functions
 from utils import data_management
@@ -40,6 +41,7 @@ class ProcessRawAccData:
             'LHAND', 'RHAND',
             'FTL', 'FTR',
             'LFTAP', 'RFTAP',
+            '_L_', '_R_'
             
         ]
     )
@@ -70,39 +72,68 @@ class ProcessRawAccData:
                 print(f'WARNING: File ({f}) skipped, extension not supported')
                 continue
 
+            # set hand-code (bilateral default)
+            hand_code = 'bilat'
+            # check if file contains unilateral data
+            for code in self.unilateral_coding_list:
+                if code.upper() in f.upper():
+                    hand_code = code.upper()
+
             # LOAD FILE
             if splitext(f)[1] == '.Poly5':
-                self.raw = poly5_reader.Poly5Reader(join(raw_path, f))
-                fs = self.raw.sample_rate
-                # set hand-code to bilateral (default)
-                hand_code = 'bilat'
-                # check if file contains unilateral data
-                for code in self.unilateral_coding_list:
-                    if code.upper() in f.upper():
-                        hand_code = code.upper()
-
-                key_ind_dict, file_side = data_management.get_arr_key_indices(
-                    self.raw.ch_names, hand_code, filename=f,
-                )
-                if len(key_ind_dict) == 0:
-                    print(f'WARNING: No ACC-keys found in keys: {self.raw.ch_names}')
-                    continue
-
-                # select present acc (aux) variables
-                file_data_class = triAxial(
-                    data=self.raw.samples,
-                    key_indices=key_ind_dict,
-                )
+                raw = poly5_reader.Poly5Reader(join(raw_path, f))
+                fs = raw.sample_rate
+                ch_names = raw.ch_names
+                raw_data = raw.samples
             
-            # TODO: add functionality for other datatypes to start with
-            # elif splitext(f)[1] == '.csv':
-            # end in file_data_class creation with left/right present
-                # select present acc (aux) variables
-                # file_data_class = data_management.triAxial(
-                #     data=self.raw.samples,
-                #     key_indices=key_ind_dict,
-                # )
-                # include fs=..
+            elif splitext(f)[1] == '.csv':
+                # create raw.samples (data), raw.ch_names, and fs
+                if 'hz' in f.lower():
+                    fs_string = splitext(f)[0]
+                    fs_string = fs_string.lower().split('hz')[0]  # take part before hz
+                    fs_string = fs_string.lower().split('_')[-1]  # take last part
+                    fs = int(fs_string)
+                else:
+                    raise ValueError('csv-files should contain sampling frequency'
+                                     'in their filename like xxxxxx_250Hz_xxx.csv')
+                # load tri-axial ACC-signal
+                raw_csv = read_csv(join(raw_path, f), sep=',',
+                                   index_col=False)
+                if max(raw_csv.shape) < fs:  # use tab-delimiter if data too small
+                    raw_csv = read_csv(join(raw_path, f), sep='\t',
+                                       index_col=False, header=None)
+                    
+                raw_data = raw_csv.values
+                if raw_data.shape[0] > raw_data.shape[1]:
+                    raw_data = raw_data.T
+                assert raw_data.shape[0] >= 3, f'Acc should be TRI-AXIAL ({f})'
+                
+                if hand_code == 'bilat':
+                    assert len(raw_csv.keys()) >= 6, (
+                        'CSV for bilateral tapping should contain at least'
+                        ' 6 column names'
+                    )
+                    raw_chnames = list(raw_csv.keys())
+                else:
+                    if 'L' in hand_code: s = 'L'
+                    elif 'R' in hand_code: s = 'R'
+
+                    if raw_data.shape[0] == 3 or raw_data.shape[0] == 2:
+                        ch_names = [f'{s}_X', f'{s}_Y', f'{s}_Z'][:raw_data.shape[0]]
+
+            # prepare data for preprocessing
+            key_ind_dict, file_side = data_management.get_arr_key_indices(
+                ch_names, hand_code, filename=f,
+            )
+            if len(key_ind_dict) == 0:
+                print(f'WARNING: No ACC-keys found in keys: {ch_names}')
+                continue
+
+            # select present acc (aux) variables
+            file_data_class = triAxial(data=raw_data,
+                                        key_indices=key_ind_dict,
+                                        filetype=splitext(f)[1])
+
             
             # create TRACE CODE based on filename
             TRACE_CODE = splitext(f)[0]
@@ -166,26 +197,33 @@ class triAxial:
     user-specific accelerometer-key
     """
     data: ndarray
+    filetype: str = '.Poly5'
     key_indices: Dict[str, int] = field(
         default_factory=lambda: defaultdict(lambda: {
         'L_X': 0, 'L_Z': 2, 'R_X': 3, 'R_Z': 5}
     ))
+    
 
     def __post_init__(self,):
+        if self.data.shape[0] == 3:
+            if True in ['L' in k for k in self.key_indices.keys()]:
+                self.left = self.data
+            elif True in ['R' in k for k in self.key_indices.keys()]:
+                self.right = self.data
+        else:
+            try:
+                self.left = self.data[
+                    self.key_indices['L_X']:
+                    self.key_indices['L_Z'] + 1  # +1 to include last index while slicing
+                ]
+            except KeyError:
+                print('WARNING: No left indices')
 
-        try:
-            self.left = self.data[
-                self.key_indices['L_X']:
-                self.key_indices['L_Z'] + 1  # +1 to include last index while slicing
-            ]
-        except KeyError:
-            print('WARNING: No left indices')
-
-        try:
-            self.right = self.data[
-                self.key_indices['R_X']:
-                self.key_indices['R_Z'] + 1
-            ]
-        except KeyError:
-            print('WARNING: No right indices')
+            try:
+                self.right = self.data[
+                    self.key_indices['R_X']:
+                    self.key_indices['R_Z'] + 1
+                ]
+            except KeyError:
+                print('WARNING: No right indices')
     

@@ -54,51 +54,65 @@ def find_active_blocks(
     thresh = np.nanstd(sig) * .5
     winl = int(fs / blocks_p_sec)
 
-    # activity per window (acc > std.dev)
-    act = np.array([sum(sig[i_start:i_start + winl] > thresh) / winl for
-        i_start in np.arange(0, sig.shape[0], winl)])
-    
-    # blocks of windows with sufficient activity
-    blocks = [sum(
-        act[i_start - buff:i_start + buff] > buff_thr
-    ) > act_wins_for_block for i_start in np.arange(buff, len(act) - buff)]
-    
-    # finding start and end indices of blocks
-    block_indices = {'start': [], 'end': []}
-    block_active = False
-    for n, b in enumerate(blocks):
-        if block_active:
-            if b: continue
+    highvalues = np.where(sig > thresh)[0]
+    i_start = highvalues[0]
+    i_end = highvalues[-1]        
+    high_prc = sum(sig > thresh) / len(sig)
+
+    if (i_start < (fs * 10) and (i_end > (len(sig) - (fs * 10)))
+        and high_prc > 0.3):
+        if verbose: print('Considered as 1 block within trace')
+        acc_blocks = [acc_arr[:, i_start:i_end],]
+        block_indices = {'start': [i_start,],
+                         'end': [i_end,]}
+
+    else:
+        # assuming multiple blocks within trace
+        # activity per window (acc > std.dev)
+        act = np.array([sum(sig[i_start:i_start + winl] > thresh) / winl for
+            i_start in np.arange(0, sig.shape[0], winl)])
+        
+        # blocks of windows with sufficient activity
+        blocks = [sum(
+            act[i_start - buff:i_start + buff] > buff_thr
+        ) > act_wins_for_block for i_start in np.arange(buff, len(act) - buff)]
+        
+        # finding start and end indices of blocks
+        block_indices = {'start': [], 'end': []}
+        block_active = False
+        for n, b in enumerate(blocks):
+            if block_active:
+                if b: continue
+                else:
+                    block_indices['end'].append(n)
+                    block_active = False
             else:
-                block_indices['end'].append(n)
-                block_active = False
-        else:
-            if b:
-                block_indices['start'].append(n)
-                block_active = True
-            else:
-                continue
+                if b:
+                    block_indices['start'].append(n)
+                    block_active = True
+                else:
+                    continue
 
-    block_indices = merge_close_blocks(
-        block_indices=block_indices,
-        min_distance=blocks_p_sec * 2,
-        verbose=verbose
-    )
+        block_indices = merge_close_blocks(
+            block_indices=block_indices,
+            min_distance=blocks_p_sec * 2,
+            verbose=verbose
+        )
 
-    block_indices = convert_win_ind_2_sample_ind(
-        block_indices=block_indices, fs=fs, winl=winl,
-    )
-    block_indices = remove_short_blocks(
-        block_indices=block_indices, fs=fs, min_length=2.5,
-    )
+        block_indices = convert_win_ind_2_sample_ind(
+            block_indices=block_indices, fs=fs, winl=winl,
+        )
+        block_indices = remove_short_blocks(
+            block_indices=block_indices, fs=fs, min_length=2.5,
+        )
 
-    acc_blocks = convert_sample_ind_2_acc_arrays(
-        acc_arr, block_indices
-    )
+        acc_blocks = convert_sample_ind_2_acc_arrays(
+            acc_arr, block_indices
+        )
 
-    acc_blocks, block_indices = select_on_block_length(
-        acc_blocks, block_indices, fs=fs
-    )
+        acc_blocks, block_indices = select_on_block_length(
+            acc_blocks, block_indices, fs=fs
+        )
 
     if verbose: report_detected_blocks(block_indices, fs)
 
@@ -357,7 +371,7 @@ def plot_blocks(
         block_indices['start'], block_indices['end']
     ):
         ax.fill_betweenx(
-            y=np.arange(max(acc_arr[mainax]),max(acc_arr[mainax])+.5,.5),
+            y=np.arange(max(acc_arr[mainax]),max(acc_arr[mainax])+.5,.1),
             x1=pos1, x2=pos2,
             color='red', alpha=.3,
             label='detected tapping blocks')
