@@ -13,7 +13,7 @@ from utils import data_management
 
 
 def predict_tap_score(
-    feats: dict, cfg_filename: str, n_taps_3: int = 9,
+    feats: dict, cfg_filename: str, min_n_taps: int = 9,
     verbose: bool = False
 ):
     """
@@ -24,7 +24,7 @@ def predict_tap_score(
         - feats (dict): containing feat-class per
             trace
         - cfg_filename (str): settings json filename
-        - n_taps_3 (int): if a trace contains less
+        - min_n_taps (int): if a trace contains less
             detected taps than this number, the trace
             will be predicted as a 3
     """
@@ -50,12 +50,14 @@ def predict_tap_score(
         block_fts = feats[block_name]  # take fts-class for block
 
         # check number of taps present
-        if len(block_fts.tap_lists) < n_taps_3:
-            pred_score = 3
-            preds_out.append(pred_score)
-
+        class_on_n_taps = classify_based_on_nTaps(
+            block_taps=block_fts.tap_lists, block_feats=block_fts,
+            min_n_taps=min_n_taps
+        )
+        if class_on_n_taps:
+            preds_out.append(class_on_n_taps)
             if verbose: print(f'Predicted tap score ({block_name}):'
-                              f' {pred_score} (based on n-taps)')
+                              f' {class_on_n_taps} (based on n-taps)')
             continue
         
         # predict block using classification
@@ -102,3 +104,38 @@ def predict_tap_score(
     preds.to_csv(join(pred_path, filename), sep=',')
 
     return 'predictions completed and stored successfully'
+
+
+def classify_based_on_nTaps(
+    block_taps, block_feats,
+    min_n_taps: int = 9, score_to_predict: int = 3,
+):
+    """
+    Classify traces based on a too small number of
+    taps detected
+
+    Input:
+        - max_n_taps: threshold of taps present
+        - ftClass: features used
+        - score_to_set: score to be classified with
+        - in_cv: performed in cross-validation, important
+            for true label handling
+    
+    Returns:
+        - CLASSIFY_BLOCK: if block does not meet criteria
+            for prediction based on n-taps: False, if
+            criteria are met: score_to_predict
+    """
+    CLASSIFY_BLOCK = False
+
+    n_taps_detected = len(block_taps)
+
+    if n_taps_detected < min_n_taps:
+        CLASSIFY_BLOCK = score_to_predict
+
+        # check escape for traces with few taps, but large amplitudes
+        if sum(block_feats.raise_velocity) > 100:
+            
+            CLASSIFY_BLOCK = False
+
+    return CLASSIFY_BLOCK
