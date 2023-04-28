@@ -36,15 +36,20 @@ def read_cfg_file(cfg_filename: str = 'configs.json'):
     # check json filetype, and add if extension is missing
     if splitext(cfg_filename)[1] != '.json': cfg_filename += '.json'
     # check existence of file
-    if not exists(cfg_filename): 
-        cfg_filename = join('data', 'settings', cfg_filename)
+    
+    if exists(cfg_filename):
+        cfg_path = cfg_filename
+    
+    elif not exists(cfg_filename): 
+        cfg_path = join('data', 'settings', cfg_filename)
 
-    if not exists(cfg_filename): set_workingdirectory(goal_path='ReTap')
-    cfg_filename = join(os.getcwd(), cfg_filename)
+        if not exists(cfg_path):
+            set_workingdirectory(goal_path='ReTap')
+            cfg_path = join(os.getcwd(), cfg_path)
+        
+    assert exists(cfg_path), f'cfg_filename ({cfg_filename}) not (in ReTap/data/settings)'
     
-    assert exists(cfg_filename), 'cfg_filename not (in data/settings)'
-    
-    with open(cfg_filename, 'r') as json_data:
+    with open(cfg_path, 'r') as json_data:
         cfg = json.load(json_data)
 
     return cfg
