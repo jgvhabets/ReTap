@@ -5,8 +5,8 @@ within ReTap-toolbox's functionality
 
 # import public packages and functions
 import os
-from os.path import join, exists, splitext
-from os import makedirs
+from os.path import join, exists, splitext, dirname
+from os import makedirs, pardir
 import sys
 import json
 from pandas import read_excel
@@ -64,29 +64,22 @@ def get_directories_from_cfg(cfg_filename = 'default',):
     else: cfg = read_cfg_file(cfg_filename)
 
     paths = {}
-    if cfg['main_directory']:
-        assert exists(cfg['main_directory']), ('Main directory in config_json: '
-                                               f'{cfg["main_directory"]} does not exist')
+    raw_path = cfg['raw_acc_folder']
+
+    assert exists(raw_path), (
+        'Raw accelerometer folder in config_json: '
+        f'{raw_path} does not exist'
+    )
             
-        paths['raw'] = join(cfg['main_directory'], 'raw_acc')
-        paths['results'] = join(cfg['main_directory'], 'results')
-        paths['figures'] = join(cfg['main_directory'], 'figures')
+    paths['raw'] = raw_path
+    par_dir = dirname(raw_path)
+    paths['results'] = join(par_dir, 'retap_results')
+    paths['figures'] = join(par_dir, 'retap_figures')
 
-        for dir in paths.keys():
-            if not exists(paths[dir]):
-                makedirs(paths[dir])
-                print(f'\t{paths[dir]} is created')
-
-
-    else:
-        paths['raw'] = cfg['single_directories']['find_raw_data']
-        paths['results'] = cfg['single_directories']['save_results']
-        paths['figures'] = cfg['single_directories']['save_figures']
-
-        # check correctness
-        for dir in paths.keys():
-            assert exists(paths[dir]), ('Incorrect single_directories'
-                                        f'{dir} path given in cfg-file')
+    for dir in paths.keys():
+        if not exists(paths[dir]):
+            makedirs(paths[dir])
+            print(f'\t{paths[dir]} is created')
 
     return paths
     

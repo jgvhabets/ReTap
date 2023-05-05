@@ -396,6 +396,10 @@ def plot_blocks(
     plt.tick_params(axis='both', labelsize=fontsize,
                     size=fontsize,)
     plt.tight_layout()
-    plt.savefig(join(figsave_dir, figsave_name + '.pdf'),
-                format='pdf', dpi=450, facecolor='w',)
+    try:
+        plt.savefig(join(figsave_dir, figsave_name + '.pdf'),
+                    format='pdf', dpi=300, facecolor='w',)
+    except PermissionError:
+        print('PDF already existed, no permission to overwrite'
+              f' for {figsave_name} in {figsave_dir}')
     plt.close()
