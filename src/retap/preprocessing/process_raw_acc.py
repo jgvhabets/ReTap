@@ -98,7 +98,7 @@ class ProcessRawAccData:
                                      'in their filename like xxxxxx_250Hz_xxx.csv')
                 # load tri-axial ACC-signal
                 raw_csv = read_csv(join(raw_path, f), sep=',',
-                                   index_col=False)
+                                   index_col=False, header=None)
                 if max(raw_csv.shape) < fs:  # use tab-delimiter if data too small
                     raw_csv = read_csv(join(raw_path, f), sep='\t',
                                        index_col=False, header=None)
@@ -106,7 +106,8 @@ class ProcessRawAccData:
                 raw_data = raw_csv.values
                 if raw_data.shape[0] > raw_data.shape[1]:
                     raw_data = raw_data.T
-                assert raw_data.shape[0] >= 3, f'Acc should be TRI-AXIAL ({f})'
+
+                assert raw_data.shape[0] == 3, f'Acc should be TRI-AXIAL ({f})'
                 
                 if hand_code == 'bilat':
                     assert len(raw_csv.keys()) >= 6, (

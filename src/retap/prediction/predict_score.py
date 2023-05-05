@@ -48,7 +48,6 @@ def predict_tap_score(
     for block_name in feats.keys():
 
         block_fts = feats[block_name]  # take fts-class for block
-
         # check number of taps present
         class_on_n_taps = classify_based_on_nTaps(
             block_taps=block_fts.tap_lists, block_feats=block_fts,
@@ -130,12 +129,15 @@ def classify_based_on_nTaps(
 
     n_taps_detected = len(block_taps)
 
-    if n_taps_detected < min_n_taps:
+    # if no taps present: predict 3
+    if n_taps_detected == 0: return score_to_predict
+
+    elif n_taps_detected < min_n_taps:
         CLASSIFY_BLOCK = score_to_predict
 
         # check escape for traces with few taps, but large amplitudes
         if sum(block_feats.raise_velocity) > 100:
-            
+            # don't classify as score-3 if large velocities present
             CLASSIFY_BLOCK = False
 
     return CLASSIFY_BLOCK

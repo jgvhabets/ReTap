@@ -12,7 +12,7 @@ from feature_extraction import feat_extraction_classes as ftClasses
 from feature_extraction.extract_features import run_ft_extraction
 from prediction import predict_score
 
-def main_retap_functionality(cfg_filename='config_jh.json',
+def main_retap_functionality(cfg_filename='configs.json',
                              single_file=None,
                              verbose=False):
     """
