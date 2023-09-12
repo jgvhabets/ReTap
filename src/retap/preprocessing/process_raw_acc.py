@@ -10,7 +10,7 @@ from dataclasses import field, dataclass
 from typing import Any, Dict
 from collections import defaultdict
 from numpy import ndarray, array, float64
-from pandas import read_csv
+from pandas import read_csv, DataFrame
 
 # import own functions
 from utils import data_management
@@ -41,7 +41,8 @@ class ProcessRawAccData:
             'LHAND', 'RHAND',
             'FTL', 'FTR',
             'LFTAP', 'RFTAP',
-            '_L_', '_R_'
+            '_L_', '_R_',
+            '_L.', '_R.',
             
         ]
     )
@@ -99,10 +100,16 @@ class ProcessRawAccData:
                 # load tri-axial ACC-signal
                 raw_csv = read_csv(join(raw_path, f), sep=',',
                                    index_col=False, header=None)
+
                 if max(raw_csv.shape) < fs:  # use tab-delimiter if data too small
                     raw_csv = read_csv(join(raw_path, f), sep='\t',
                                        index_col=False, header=None)
-                    
+                
+                # check for column names
+                if all([isinstance(v, str) for v in raw_csv.values[0, :]]):
+                    print(f'convert first row to column-names ({raw_csv.values[0, :]})')
+                    raw_csv = DataFrame(data=raw_csv.values[1:, :], columns=raw_csv.values[0, :])
+
                 raw_data = raw_csv.values
                 if raw_data.shape[0] > raw_data.shape[1]:
                     raw_data = raw_data.T
@@ -112,7 +119,9 @@ class ProcessRawAccData:
                 if hand_code == 'bilat':
                     assert len(raw_csv.keys()) >= 6, (
                         'CSV for bilateral tapping should contain at least'
-                        ' 6 column names'
+                        ' 6 column names, or the hand-coding is incorrect.'
+                        '\n(Check the allowed_hand_coding in class ProcessRawAccData'
+                        ' in process_raw_acc.py)'
                     )
                     raw_chnames = list(raw_csv.keys())
                 else:

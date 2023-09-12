@@ -6,13 +6,15 @@ Main script to run ReTap from command line
 import sys
 import os
 
+sys.path.append(os.path.join(os.getcwd(), 'src', 'retap'))
+
 # import retap's functions
 from preprocessing import process_raw_acc
 from feature_extraction import feat_extraction_classes as ftClasses
 from feature_extraction.extract_features import run_ft_extraction
 from prediction import predict_score
 
-def main_retap_functionality(cfg_filename='configs.json',
+def main_retap_functionality(cfg_filename='configs_adbs.json',
                              single_file=None,
                              verbose=False):
     """

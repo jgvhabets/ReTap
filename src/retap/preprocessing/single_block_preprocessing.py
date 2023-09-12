@@ -38,7 +38,10 @@ def preprocess_acc(
     assert fs >= goal_fs, (
         f'Sampling Frequency should be >= {goal_fs} Hz'
         f', now detected {fs}')
-    
+    print(dat_arr.shape)
+    print(dat_arr)
+    dat_arr = dat_arr.astype(np.float64)
+
     if fs > goal_fs:
         dat_arr = resample_poly(x=dat_arr, up=1, axis=-1,
             down=int(fs / goal_fs), )
@@ -83,8 +86,8 @@ def find_main_axis(dat_arr, method: str = 'minmax',):
         dat_arr = dat_arr.T
 
     if method == 'minmax':
-        maxs = np.max(dat_arr, axis=1)
-        mins = abs(np.min(dat_arr, axis=1))
+        maxs = np.nanmax(dat_arr, axis=1)
+        mins = abs(np.nanmin(dat_arr, axis=1))
         main_ax_index = np.argmax(maxs + mins)
     
     elif method == 'variance':

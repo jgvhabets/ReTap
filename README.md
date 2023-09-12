@@ -83,6 +83,11 @@ Steps to perform in your (anaconda) prompt:
 - Make sure your environment has the required packages installed, either manually, or by following the instructions above.
 - ReTap can be executed directly from the command line, or within a notebook. We will explain both options below.
 - In both workflows, ReTap will search for all accelerometer-traces within a predefined folder. THIS FOLDER HAS TO DEFINED WITHIN THE FILE: `ReTap/data/settings/configs.json`.
+- Accelerometer traces need to be either Poly5 or csv-files.
+- Accelerometer file-names need to contain the following info:
+    - their SAMPLING FREQUENCY as UNDERSCORE-FREQ-Hz-UNDERSCORE (e.g. xxx_250Hz_)
+    - if file contains only ONE hand, this should be defined e.g. LHand, RHand (see allowed hand codes in class ProcessRawAccData, in process_raw_acc.py)
+    - the filenaming will be used for storing the results, so make sure the namings are traceable and differentiable
 - MAKE SURE TO CHANGE THE VARIABLE `raw_acc_folder` within configs.json into THE LOCAL FOLDER WHERE YOU STORED THE ACCELEROMETER FILES THAT NEED TO BE PROCESSED.
 
 ### Notebook usage
