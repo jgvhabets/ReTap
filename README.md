@@ -67,11 +67,17 @@ There are some important steps you need to do, before you can work with the resu
 - Command line:
     - set working directory to desired folder and run: `git clone https://github.com/jgvhabets/ReTap.git`
     - to check initiated remote-repo link, and current branch: `cd ReTap`, `git init`, `git remote -v`, `git branch` (switch to branch main e.g. with `git checkout main`)
-- `pip install` will follow soon
+- `pip install` from within your DESIGNATED ENVIRONMENT!!:
+    - working directory to repo folder, run in Anaconda prompt: `pip install -e .`
+    - from any other py-script or notebook: `import retap`
 
 ### Environment
-- GUI: Create a python environment with the correct requirements. Either use the GUI of a environments-manager (such as anaconda), and install all dependencies mentioned in the setup.py.
-- Command line: you can easily install the required environment from your command line prompt. Note: since some packages are only available via `pip install`, the environment-installation requires 2 commands: one for `conda install`, and one for `pip install`. 
+(Option 1 preferred)
+- 1) conda creation via .yml:
+    - working direction should be in repo folder
+    - `conda env create -f retap_env.yml -n YOUR_ENV_NAME`
+- 2) GUI: Create a python environment with the correct requirements. Either use the GUI of a environments-manager (such as anaconda), and install all dependencies mentioned in the setup.py.
+- 3) Command line: you can easily install the required environment from your command line prompt. Note: since some packages are only available via `pip install`, the environment-installation requires 2 commands: one for `conda install`, and one for `pip install`. 
 Steps to perform in your (anaconda) prompt:
     - navigate to repo directory, e.g.: `cd Users/USERNAME/Research/ReTap`
     - create environment using batch install: `.\create_conda_env.bat` (confirm Proceed? with `y`)

@@ -4,19 +4,19 @@ from command line
 """
 
 # import public packages
-from os import listdir, makedirs, getcwd
-from os.path import join, splitext, exists
+from os import listdir  #, makedirs, getcwd
+from os.path import join, splitext  #, exists
 from dataclasses import field, dataclass
 from typing import Any, Dict
 from collections import defaultdict
-from numpy import ndarray, array, float64
+from numpy import ndarray  #, array, float64
 from pandas import read_csv, DataFrame
 
 # import own functions
-from utils import data_management
-import utils.tmsi_poly5reader as poly5_reader
-import preprocessing.finding_blocks as find_blocks
-from preprocessing.single_block_preprocessing import preprocess_acc
+from retap.utils import data_management
+import retap.utils.tmsi_poly5reader as poly5_reader
+import retap.preprocessing.finding_blocks as find_blocks
+from retap.preprocessing.single_block_preprocessing import preprocess_acc
 
 
 @dataclass(init=True, repr=True)
@@ -53,6 +53,8 @@ class ProcessRawAccData:
     def __post_init__(self,):
         # IDENTIFY FILES TO PROCESS
         paths = data_management.get_directories_from_cfg(self.cfg_filename)
+        if self.verbose: print(f'paths found in ProcessRawAccData: {paths}')
+
         # use given file
         if self.use_single_file:
             sel_files = [self.use_single_file,]
@@ -114,7 +116,7 @@ class ProcessRawAccData:
                 if raw_data.shape[0] > raw_data.shape[1]:
                     raw_data = raw_data.T
 
-                assert raw_data.shape[0] == 3, f'Acc should be TRI-AXIAL ({f})'
+                if raw_data.shape[0] > 3: hand_code = 'bilat'
                 
                 if hand_code == 'bilat':
                     assert len(raw_csv.keys()) >= 6, (
@@ -123,7 +125,7 @@ class ProcessRawAccData:
                         '\n(Check the allowed_hand_coding in class ProcessRawAccData'
                         ' in process_raw_acc.py)'
                     )
-                    raw_chnames = list(raw_csv.keys())
+                    ch_names = list(raw_csv.keys())
                 else:
                     if 'L' in hand_code: s = 'L'
                     elif 'R' in hand_code: s = 'R'
@@ -133,7 +135,7 @@ class ProcessRawAccData:
 
             # prepare data for preprocessing
             key_ind_dict, file_side = data_management.get_arr_key_indices(
-                ch_names, hand_code, filename=f,
+                ch_names, hand_code, filename=f, cfg_fname=self.cfg_filename,
             )
             if len(key_ind_dict) == 0:
                 print(f'WARNING: No ACC-keys found in keys: {ch_names}')

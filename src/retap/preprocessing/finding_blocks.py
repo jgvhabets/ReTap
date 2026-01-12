@@ -11,8 +11,8 @@ from os import makedirs
 from pandas import DataFrame
 
 # Import own functions
-from feature_extraction.kinematic_features import signalvectormagn
-from preprocessing.single_block_preprocessing import find_main_axis
+from retap.feature_extraction.kinematic_features import signalvectormagn
+from retap.preprocessing.single_block_preprocessing import find_main_axis
 
 def find_active_blocks(
     acc_arr, fs, buff=5, buff_thr=.3, blocks_p_sec=8,

@@ -10,7 +10,7 @@ from scipy.stats import variation
 from scipy.signal import resample_poly
 
 # Import own functions
-from preprocessing.finding_impacts import find_impacts
+from retap.preprocessing.finding_impacts import find_impacts
 
 def preprocess_acc(
     dat_arr,

@@ -6,9 +6,9 @@ from scipy.signal import find_peaks, peak_widths
 from pandas import DataFrame
 
 # Import own functions
-from preprocessing.single_block_preprocessing import find_main_axis
-from feature_extraction.kinematic_features import signalvectormagn
-from preprocessing.single_block_preprocessing import remove_acc_nans
+from retap.preprocessing.single_block_preprocessing import find_main_axis
+from retap.feature_extraction.kinematic_features import signalvectormagn
+from retap.preprocessing.single_block_preprocessing import remove_acc_nans
 
 
 def find_tap_timings(acc_triax, fs: int,):

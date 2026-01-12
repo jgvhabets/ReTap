@@ -17,13 +17,35 @@ from joblib import load
 
 def set_workingdirectory(goal_path='retap'):
     wd = os.getcwd()
-    if not wd.endswith(goal_path):
-        if wd.endswith('ReTap'):
-            wd = os.path.join(os.getcwd(), 'src', 'retap')
-        while not wd.endswith(goal_path):
-            wd = os.path.dirname(wd)
-        os.chdir(wd)  # set wd to retap
-        sys.path.append(os.getcwd())
+
+    # if not wd.endswith(goal_path):
+    #     if wd.endswith('ReTap'):
+    #         wd = os.path.join(os.getcwd(), 'src', 'retap')
+    #     while not wd.endswith(goal_path):
+    #         wd = os.path.dirname(wd)
+    #         print('WARNING: within WHILE-loop (utils.data_management.set_workingdirectory())')
+    #     os.chdir(wd)  # set wd to retap
+    #     sys.path.append(os.getcwd())
+    utils_dir = os.path.dirname(os.path.abspath(__file__))
+    retap_dir = os.path.dirname(utils_dir)
+    repo_dir = os.path.dirname(os.path.dirname(retap_dir))
+    cfg_dir = os.path.join(repo_dir, 'data', 'settings')
+
+    for d in [retap_dir, repo_dir, cfg_dir]:
+        sys.path.append(d)
+        print(f'{d} added sys-append')
+
+
+def get_directory(dir):
+
+    utils_dir = os.path.dirname(os.path.abspath(__file__))
+    retap_dir = os.path.dirname(utils_dir)
+    repo_dir = os.path.dirname(os.path.dirname(retap_dir))
+    cfg_dir = os.path.join(repo_dir, 'data', 'settings')
+
+    if dir=='cfg': return cfg_dir
+    elif dir=='repo': return repo_dir
+
 
 
 def read_cfg_file(cfg_filename: str = 'configs.json'):
@@ -40,12 +62,10 @@ def read_cfg_file(cfg_filename: str = 'configs.json'):
     if exists(cfg_filename):
         cfg_path = cfg_filename
     
-    elif not exists(cfg_filename): 
-        cfg_path = join('data', 'settings', cfg_filename)
+    else:
+        cfg_dir = get_directory(dir='cfg')
+        cfg_path = join(cfg_dir, cfg_filename)
 
-        if not exists(cfg_path):
-            set_workingdirectory(goal_path='ReTap')
-            cfg_path = join(os.getcwd(), cfg_path)
         
     assert exists(cfg_path), f'cfg_filename ({cfg_filename}) not (in ReTap/data/settings)'
     
@@ -67,6 +87,8 @@ def get_directories_from_cfg(cfg_filename = 'default',):
     # use either default (configs.json) or custom inserted filename
     if cfg_filename == 'default': cfg = read_cfg_file()
     else: cfg = read_cfg_file(cfg_filename)
+
+    print(f'cfg-file loaded: {cfg}')
 
     paths = {}
     raw_path = cfg['raw_acc_folder']
@@ -97,9 +119,13 @@ def load_clf_model(clf_fname: str = 'ReTap_RF_15taps.P'):
     # check json filetype, and add if extension is missing
     assert splitext(clf_fname)[1] == '.P', 'clf_model should be pickle'
     # check existence of file
-    set_workingdirectory(goal_path='ReTap')
-    clf_path = join('data', 'models', clf_fname)
-    assert exists(clf_path), 'clf_model not found in ReTap/data/models'
+    # set_workingdirectory(goal_path='ReTap')
+
+    repo_dir = get_directory(dir='repo')
+    model_dir = join(repo_dir, 'data', 'models')
+
+    clf_path = join(model_dir, clf_fname)
+    assert exists(clf_path), 'clf_model not found in ReTap/data/models/'
 
     clf = load(clf_path)
 
@@ -163,9 +189,11 @@ def get_arr_key_indices(ch_names, hand_code, cfg_fname=None,
     use_custom_naming = False
     if isinstance(cfg_fname, str):
         cfg = read_cfg_file(cfg_fname)
-        if cfg['use_custom_channel_naming']:
+        print(cfg)
+        if cfg['use_custom_acc_naming']:
             custom_coding = cfg['custom_acc_channel_naming']
             use_custom_naming = True
+            print(f'custom name-coding: {custom_coding}')
 
     # empty dict to store
     dict_out = {}
@@ -179,12 +207,15 @@ def get_arr_key_indices(ch_names, hand_code, cfg_fname=None,
     aux_count = 0
 
     for i, key in enumerate(ch_names):
+        print(f'check {key}, {i}')
         
         # use custom naming if defined
         if use_custom_naming:
+            print(f'check custom {key}, {i}')
             if key in list(custom_coding.keys()):
                 dict_out[custom_coding[key]] = i
-
+                print(f'addressed {custom_coding[key]} on index {i}')
+            
         # L_X, L_Y, etc
         elif key in ['L_X', 'L_Y', 'L_Z', 'R_X', 'R_Y', 'R_Z']:
             dict_out[key] = i

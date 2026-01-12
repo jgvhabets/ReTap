@@ -5,8 +5,8 @@ import datetime as dt
 import json
 from numpy import ndarray, int64, float64
 
-from utils.data_management import get_directories_from_cfg, save_class_pickle
-from feature_extraction.feat_extraction_classes import singleTrace  
+from retap.utils.data_management import get_directories_from_cfg, save_class_pickle
+from retap.feature_extraction.feat_extraction_classes import singleTrace  
 
 
 def run_ft_extraction(

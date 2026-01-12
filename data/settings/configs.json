@@ -1,5 +1,5 @@
 {
-    "raw_acc_folder": "C:/Users/XXX/Research/retap_repo_testing/raw_csv_files",
+    "raw_acc_folder": "C:/Users/habetsj/Research/projects/tapping/entrain_tapping/acc_raw",
     "use_custom_acc_naming": false,
     "custom_acc_channel_naming": {
         "CUSTOM_L_X": "L_X",

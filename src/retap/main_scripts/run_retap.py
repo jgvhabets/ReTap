@@ -9,10 +9,11 @@ import os
 sys.path.append(os.path.join(os.getcwd(), 'src', 'retap'))
 
 # import retap's functions
-from preprocessing import process_raw_acc
-from feature_extraction import feat_extraction_classes as ftClasses
-from feature_extraction.extract_features import run_ft_extraction
-from prediction import predict_score
+print('...importing retap modules')
+from retap.preprocessing import process_raw_acc
+# from retap.feature_extraction import feat_extraction_classes as ftClasses
+from retap.feature_extraction.extract_features import run_ft_extraction
+from retap.prediction import predict_score
 
 def main_retap_functionality(cfg_filename='configs_adbs.json',
                              single_file=None,
@@ -21,6 +22,7 @@ def main_retap_functionality(cfg_filename='configs_adbs.json',
     Function that runs ReTap algorithm parts, will
     be ran both in command-line as in notebook use.
     """
+    print('Run "main_retap_functionality"....')
     # Part 1: load raw-ACC and detect-active blocks
     rawAcc = process_raw_acc.ProcessRawAccData(
         cfg_filename=cfg_filename,
@@ -52,6 +54,7 @@ if __name__ == '__main__':
     To be called on WIN (e.g. from ReTap working directory):
         python -m src.retap.main_scripts.run_retap
     """
+    print('MAIN RETAP RUNNING...')
     # if single filename given
     if len(sys.argv) == 2:
         file_sel = sys.argv[1]

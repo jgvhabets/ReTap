@@ -9,15 +9,14 @@ ReTap-Toolbox
 import os
 from dataclasses import dataclass, field
 from typing import Any
-from itertools import product
 from pandas import read_csv
-from numpy import logical_and, isnan, loadtxt
+from numpy import loadtxt
 import numpy as np
 
-from feature_extraction.tapping_time_detect import find_tap_timings
-import preprocessing.single_block_preprocessing as preprocess
-import feature_extraction.kinematic_features as kin_feats
-import feature_extraction.feature_post_processing as postExtrCalc
+from retap.feature_extraction.tapping_time_detect import find_tap_timings
+import retap.preprocessing.single_block_preprocessing as preprocess
+import retap.feature_extraction.kinematic_features as kin_feats
+import retap.feature_extraction.feature_post_processing as postExtrCalc
 
 
 @dataclass(repr=True, init=True,)

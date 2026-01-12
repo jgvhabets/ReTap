@@ -9,7 +9,7 @@ from numpy import atleast_2d, float64, isnan, nan
 from pandas import DataFrame
 import datetime as dt
 
-from utils import data_management
+from retap.utils import data_management
 
 
 def predict_tap_score(
