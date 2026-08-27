@@ -165,27 +165,38 @@ def RMS_extraction(
 
         for n, tap in enumerate(tap_indices):
 
-            tap = tap.astype(int)  # np.nan as int is -999999...
-
+            # FIX C15: check for missing indices BEFORE integer conversion.
+            # (Previously `tap.astype(int)` ran first, converting np.nan to a
+            # huge negative integer, so the NaN-checks below could never fire
+            # and a negative index would silently wrap around in Python.)
             if unit_to_assess == 'taps':
-                sel1 = int(tap[0])
-                sel2 = int(tap[-1])
-                if np.isnan(sel2): sel2 = int(tap[-2])
+                i1 = tap[0]
+                i2 = tap[-1]
+                if np.isnan(i2): i2 = tap[-2]
 
             elif unit_to_assess == 'impacts':
-                sel1 = int(tap[-2] - int(fs * impact_window / 2))
-                sel2 = int(tap[-2] + int(fs * impact_window / 2))
+                if np.isnan(tap[-2]):
+                    continue  # leave RMS[n] as NaN placeholder
+                i1 = tap[-2] - int(fs * impact_window / 2)
+                i2 = tap[-2] + int(fs * impact_window / 2)
 
-            if np.logical_or(sel1 == np.nan, sel2 == np.nan):
-                print('tap skipped, missing indices')
-                continue
-            
+            if np.isnan(i1) or np.isnan(i2):
+                continue  # leave RMS[n] as NaN placeholder
+
+            # FIX C15: clamp window start to signal start, so the impact
+            # window of a first tap near the block edge cannot become a
+            # negative (wrap-around) index yielding an empty slice
+            sel1 = max(0, int(i1))
+            sel2 = max(0, int(i2))
+            if sel2 <= sel1:
+                continue  # empty window: leave RMS[n] as NaN placeholder
+
             tap_sig = sig[sel1:sel2]
-            
+
             RMS[n] = calc_RMS(tap_sig)
-        
+
             if to_norm: RMS[n] /= (len(tap_sig) / fs)  # normalise RMS against duration in sec
-        
+
         return RMS
 
 
@@ -242,7 +253,13 @@ def velo_calc_auc(tap_indices, accSig,):
             if sum(areas) == 0:
                 print('\nSUM 0',n, line[:30], tap[0], tap[1])
             out.append(sum(areas))
-    
+        else:
+            # FIX C13: keep one entry per tap (NaN placeholder) instead of
+            # silently skipping taps with unknown fastestUp; keeps the
+            # array aligned with tap_indices, downstream aggregations
+            # are NaN-aware (np.nanmean etc.)
+            out.append(np.nan)
+
     return np.array(out)
 
 
@@ -314,11 +331,13 @@ def jerkiness(
                 np.isnan(tap[0]),
                 np.isnan(tap[-1])
             ):
-                continue
+                # FIX C14: NaN placeholder instead of skip (keeps array
+                # aligned with tap_indices)
+                trace_count.append(np.nan)
 
             elif len(tap) == 0:
-                continue
-            
+                trace_count.append(np.nan)  # FIX C14
+
             else:
                 tap_acc = accsig[:, int(tap[0]):int(tap[-1])]
                 tap_duration = (tap[-1] - tap[0]) / fs  # in seconds
@@ -349,11 +368,13 @@ def entropy_per_tap(
             np.isnan(tap[0]),
             np.isnan(tap[-1])
         ):
-            continue
+            # FIX C14: NaN placeholder instead of skip (keeps array
+            # aligned with tap_indices)
+            entr_list.append(np.nan)
 
         elif len(tap) == 0:
-            continue
-        
+            entr_list.append(np.nan)  # FIX C14
+
         else:
             tap_svm = svm[int(tap[0]):int(tap[-1])]
             ent = calc_entropy(tap_svm)

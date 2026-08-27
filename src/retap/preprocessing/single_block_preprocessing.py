@@ -137,23 +137,24 @@ def remove_outlier(
         main_ax < -thresh, main_ax > thresh)
     if np.sum(outliers) == 0: return dat_arr
 
-    if verbose: print(
-        f'{np.sum(outliers)} outlier-timepoints to remove'
+    # FIX C21: always report outlier removal (previously silent when
+    # verbose=False, which is the pipeline default)
+    print(
+        f'{np.sum(outliers)} outlier-timepoints to remove '
+        f'(threshold: {thresh:.4f})'
     )
-    
+
     # create boolean to remove
-    remove_i = np.zeros_like((main_ax))  # boolean array to indicate removal
-    idx_arr = np.arange(len(remove_i))  # use idx arr to create masks
-    for i, outl in enumerate(outliers):  # loop over outlier boolean
-        if not outl: continue
-        # set remove_i to True for buffer range around outlier index
-        remove_mask = np.logical_and(idx_arr > (i - halfBuff),
-                                     idx_arr < (i + halfBuff))
-        assert sum(remove_mask) <= 2*halfBuff
-        remove_i[remove_mask] = 1
+    # FIX C3: vectorized version of the previous per-sample loop
+    # (identical result: mark the open interval (i-halfBuff, i+halfBuff)
+    # around every outlier sample i); the old loop was O(n_samples *
+    # n_outliers) and could hang for minutes on long recordings
+    remove_i = np.zeros(len(main_ax), dtype=bool)
+    for i in np.where(outliers)[0]:
+        remove_i[max(0, i - halfBuff + 1):i + halfBuff] = True
 
     # replace with nan
-    dat_arr[:, remove_i.astype(bool)] = np.nan
+    dat_arr[:, remove_i] = np.nan
 
     return dat_arr
 

@@ -34,9 +34,12 @@ def find_impacts(uni_arr, fs):
     )[0]
 
     # select peaks with surrounding pos- or neg-DIFF-peak
+    # FIX C8: clamp window start to 0 (a negative Python slice index counts
+    # from the array END, returning an empty window for peaks in the first
+    # 3 samples, which silently rejected them)
     impact_pos = [np.logical_or(
-        any(arr_diff[i - 3:i + 3] < -df_thresh),
-        any(arr_diff[i - 3:i + 3] > df_thresh)
+        any(arr_diff[max(0, i - 3):i + 3] < -df_thresh),
+        any(arr_diff[max(0, i - 3):i + 3] > df_thresh)
     ) for i in pos_peaks]
     
     impacts = pos_peaks[impact_pos]
