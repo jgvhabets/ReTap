@@ -56,12 +56,15 @@ class ProcessRawAccData:
         paths = data_management.get_directories_from_cfg(self.cfg_filename)
         if self.verbose: print(f'paths found in ProcessRawAccData: {paths}')
 
+        # FIX (enabling bugfix): raw_path was only assigned in the
+        # all-files branch, so use_single_file mode crashed with
+        # UnboundLocalError at the read_csv call below
+        raw_path = paths['raw']
         # use given file
         if self.use_single_file:
             sel_files = [self.use_single_file,]
         # default consider all files in raw data path
         else:
-            raw_path = paths['raw']
             sel_files = listdir(raw_path)
 
             if self.verbose: print(f'files selected from {raw_path}: {sel_files}')
