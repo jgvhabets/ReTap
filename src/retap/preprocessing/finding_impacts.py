@@ -23,9 +23,17 @@ def find_impacts(uni_arr, fs):
     Returns:
         - impacts: impact-positions in trace-indices
     """
-    thresh = np.nanmax(uni_arr) * .2
+    # FIX C5: cap the reference amplitude at 2x the 99.5th percentile.
+    # On artifact-free blocks max <= 2*p99.5, so the reference equals the
+    # published maximum and behavior is identical; only when a spike
+    # towers implausibly over the amplitude distribution (max >> p99.5)
+    # is the reference capped, preventing the threshold from rising
+    # above every true tap (which collapsed detection entirely)
+    ref = min(np.nanmax(uni_arr), 2 * np.nanpercentile(uni_arr, 99.5))
+    thresh = ref * .2
     arr_diff = np.diff(uni_arr)
-    df_thresh = np.nanmax(arr_diff) * .2  # was .35 (14.12)
+    df_ref = min(np.nanmax(arr_diff), 2 * np.nanpercentile(arr_diff, 99.5))
+    df_thresh = df_ref * .2  # was .35 (14.12)
     
     pos_peaks = find_peaks(
         uni_arr,
