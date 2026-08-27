@@ -16,7 +16,8 @@ from pandas import read_csv, DataFrame
 from retap.utils import data_management
 import retap.utils.tmsi_poly5reader as poly5_reader
 import retap.preprocessing.finding_blocks as find_blocks
-from retap.preprocessing.single_block_preprocessing import preprocess_acc
+from retap.preprocessing.single_block_preprocessing import (
+    preprocess_acc, remove_outlier, remove_outlier_block, find_main_axis)
 
 
 @dataclass(init=True, repr=True)
@@ -167,18 +168,33 @@ class ProcessRawAccData:
 
 
                 ### PREPROCESS ###
-                procsd_arr, _ = preprocess_acc(
+                # FIX C1/C2: preprocess WITHOUT the whole-recording
+                # outlier removal to obtain the clean signal the block
+                # DATA will be extracted from ...
+                procsd_clean, main_ax_i = preprocess_acc(
                     dat_arr=getattr(file_data_class, acc_side),
                     fs=fs,
                     goal_fs=self.goal_fs,
                     to_detrend=True,
                     to_check_magnOrder=True,
                     to_check_polarity=True,
-                    to_remove_outlier=True,
+                    to_remove_outlier=False,
                     verbose=self.verbose,
                 )
+                # ... and apply the published whole-recording outlier
+                # removal ONLY to the signal used for block DETECTION
+                # (it is the last preprocessing step, so this exactly
+                # reproduces the published detection input; block
+                # boundaries and numbering are therefore unchanged)
+                # (main_ax_i is the axis chosen at the START of
+                # preprocess_acc, exactly as the published code passes
+                # it to remove_outlier)
+                procsd_detect = remove_outlier(
+                    procsd_clean.copy(), main_ax_i,
+                    self.goal_fs, self.verbose,
+                )
                 # replace arr in class with processed data
-                setattr(file_data_class, acc_side, procsd_arr)
+                setattr(file_data_class, acc_side, procsd_detect)
 
                 self.data = file_data_class  # store in class to work with in notebook
 
@@ -191,10 +207,23 @@ class ProcessRawAccData:
                     figsave_dir=blocks_fig_path,
                     figsave_name=(f'{TRACE_CODE}_'
                                   f'{acc_side}_blocks_detected'),
-                    to_store_csv=self.STORE_CSV,
+                    to_store_csv=False,  # CSVs stored below, from clean data
                     csv_dir=blocks_csv_path,
                     csv_fname=csv_fname,
                 )
+                # FIX C1/C2: extract block data from the CLEAN signal at
+                # the published block boundaries, then per-block outlier
+                # removal (movement-based threshold) + gap interpolation
+                clean_blocks = [
+                    remove_outlier_block(
+                        procsd_clean[:, i1:i2], self.goal_fs, verbose=True)
+                    for i1, i2 in zip(temp_ind['start'], temp_ind['end'])
+                ]
+                if self.STORE_CSV:
+                    find_blocks.save_block_csv(
+                        clean_blocks, self.goal_fs, blocks_csv_path,
+                        csv_fname, verbose=self.verbose,
+                    )
                 self.current_trace_list.append(csv_fname)
 
 
