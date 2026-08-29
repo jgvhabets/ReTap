@@ -11,6 +11,7 @@ from retap.feature_extraction.feat_extraction_classes import singleTrace
 
 def run_ft_extraction(
     acc_block_names, cfg_filename='configs.json', verbose=True,
+    max_time_incl_s: float = 0,
 ):
     """
     Perform feature extraction
@@ -30,7 +31,8 @@ def run_ft_extraction(
         if not f_in_names: continue
 
         # if filename corresponds to one of the trace names
-        trace = singleTrace(join(tap_block_path, f))
+        trace = singleTrace(join(tap_block_path, f),
+                            max_time_incl_s=max_time_incl_s)
         trace_key = splitext(f)[0]  # take trace name
         if trace_key.endswith('_250Hz'): trace_key = trace_key[:-6]
 

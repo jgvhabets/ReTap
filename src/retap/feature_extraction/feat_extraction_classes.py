@@ -39,7 +39,11 @@ class singleTrace:
     filepath: str
     goal_fs: int = 250
     max_n_taps_incl: int = 15
-    
+    max_time_incl_s: float = 0  # C22: 0 = off; if > 0, per-tap features
+                                # use only taps whose impact falls within
+                                # this many seconds after the first
+                                # detected impact; adds freq_window
+
     def __post_init__(self,):
         # load and store tri-axial ACC-signal
         if os.path.splitext(self.filepath)[1] == '.csv':
@@ -119,6 +123,7 @@ class singleTrace:
             impacts=impact_idx,
             tap_lists=tap_idx,
             max_n_taps_incl=self.max_n_taps_incl,
+            max_time_incl_s=self.max_time_incl_s,
         )
 
 
@@ -146,6 +151,7 @@ class tapFeatures:
     impacts: Any
     tap_lists: dict = field(default_factory=dict)
     max_n_taps_incl: int = 0
+    max_time_incl_s: float = 0
     
     def __post_init__(self,):
 
@@ -188,9 +194,28 @@ class tapFeatures:
         setattr(self, 'trace_entropy', entr_trace)
 
 
+        # C22: time-window rule - restrict per-tap features to taps whose
+        # impact falls within max_time_incl_s seconds after the FIRST
+        # detected impact. Trace-level features above are untouched; the
+        # published freq is kept, a windowed rate is ADDED as freq_window.
+        if self.max_time_incl_s > 0 and len(np.atleast_1d(self.impacts)) > 0:
+            imp = np.atleast_1d(self.impacts)
+            t_end = imp[0] + self.max_time_incl_s * self.fs
+            # freq_window denominator: the requested window, capped at
+            # the actually available tapping time after the first impact
+            # (blocks shorter than the window are not penalised)
+            avail_s = (self.triax_arr.shape[1] - imp[0]) / self.fs
+            denom_s = min(self.max_time_incl_s, avail_s)
+            self.freq_window = float(np.sum(imp <= t_end)) / denom_s
+            setattr(self, 'tap_lists',
+                    [t for t in self.tap_lists if t[5] <= t_end])
+            self.n_taps_in_window = len(self.tap_lists)
+            if len(self.tap_lists) == 0:
+                return  # no taps inside window: no per-tap features
+
         if self.max_n_taps_incl > 0:
             setattr(self, 'tap_lists', self.tap_lists[:self.max_n_taps_incl])
-        
+
         # FEATURES BASED ON SINGLE TAPS
 
         self.intraTapInt = kin_feats.intraTapInterval(
