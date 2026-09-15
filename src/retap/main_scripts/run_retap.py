@@ -31,9 +31,12 @@ def main_retap_functionality(cfg_filename='configs_adbs.json',
     )
 
     # Part 2 and 3: detect single taps and feature extraction
+    # C22: per-tap features restricted to the first 20 s after the
+    # first detected impact (adds freq_window / n_taps_in_window)
     fts = run_ft_extraction(acc_block_names=rawAcc.current_trace_list,
                             cfg_filename=cfg_filename,
-                            verbose=verbose)
+                            verbose=verbose,
+                            max_time_incl_s=20)
 
     # Part 4: create predicted UPDRS Item 3.4 score
     predict_score.predict_tap_score(feats=fts, cfg_filename=cfg_filename,
