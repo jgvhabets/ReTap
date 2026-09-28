@@ -137,15 +137,16 @@ def remove_outlier(
         main_ax < -thresh, main_ax > thresh)
     if np.sum(outliers) == 0: return dat_arr
 
-    # FIX C21: always report outlier removal (previously silent when
-    # verbose=False, which is the pipeline default)
+    # always report outlier removal when samples are actually removed
+    # (function returns above if no outliers are present; previously
+    # removal was silent under verbose=False, the pipeline default)
     print(
         f'{np.sum(outliers)} outlier-timepoints to remove '
         f'(threshold: {thresh:.4f})'
     )
 
     # create boolean to remove
-    # FIX C3: vectorized version of the previous per-sample loop
+    # vectorized version of the previous per-sample loop
     # (identical result: mark the open interval (i-halfBuff, i+halfBuff)
     # around every outlier sample i); the old loop was O(n_samples *
     # n_outliers) and could hang for minutes on long recordings
@@ -161,7 +162,7 @@ def remove_outlier(
 
 def interpolate_nan_gaps(dat_arr, fs, verbose: bool = True):
     """
-    FIX C2: repair NaN gaps by linear interpolation instead of the
+    Repair NaN gaps by linear interpolation instead of the
     previous delete-and-concatenate (which compressed the time base:
     every interval spanning a deleted gap became silently too short,
     and taps at gap edges could merge into pseudo-taps).
@@ -207,9 +208,9 @@ def interpolate_nan_gaps(dat_arr, fs, verbose: bool = True):
 
 def remove_outlier_block(dat_arr, fs, verbose: bool = True):
     """
-    FIX C1: outlier removal at BLOCK level with a movement-based
-    threshold, replacing the whole-recording variant for the extracted
-    block data.
+    Outlier removal at BLOCK level with a movement-based threshold,
+    replacing the whole-recording variant for the extracted block data
+    (config-key "outlier_removal": "per_block").
 
     The published whole-recording threshold (10x the 99th percentile of
     the full trace) collapses towards the noise floor in long,
@@ -219,14 +220,16 @@ def remove_outlier_block(dat_arr, fs, verbose: bool = True):
     so 10x that value only removes true non-tap artifacts.
 
     Flagged samples (plus 0.3 s on each side, as published) are set to
-    NaN on all axes and then repaired by interpolate_nan_gaps() to keep
-    the time base intact (FIX C2).
+    NaN on all axes. The NaNs are stored explicitly in the block-csv
+    and repaired by interpolation at feature-extraction time, where
+    features overlapping a gap are excluded (interpolated samples
+    carry no real data, they only preserve the sample clock).
 
     Input:
         - dat_arr (array): 3 x n_samples of ONE tapping block
         - fs (int): sample frequency
     Returns:
-        - dat_arr: cleaned block
+        - dat_arr: cleaned block (may contain NaN)
     """
     dat_arr = np.atleast_2d(np.asarray(dat_arr, dtype=float))
     main_ax = dat_arr[find_main_axis(dat_arr)]
@@ -244,9 +247,10 @@ def remove_outlier_block(dat_arr, fs, verbose: bool = True):
             remove_i[max(0, i - halfBuff + 1):i + halfBuff] = True
         dat_arr[:, remove_i] = np.nan
 
-    # repair any NaNs (from outlier removal above, or already present
-    # in the source data) by interpolation - never by sample deletion
-    dat_arr = interpolate_nan_gaps(dat_arr, fs, verbose=verbose)
+    # NaNs (from the removal above, or already present in the source
+    # data) are intentionally KEPT here: they are stored in the
+    # block-csv and interpolated at feature-extraction time, so that
+    # features overlapping a gap can be excluded there
 
     return dat_arr
 

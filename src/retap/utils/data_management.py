@@ -247,6 +247,70 @@ def get_arr_key_indices(ch_names, hand_code, cfg_fname=None,
     return dict_out, file_side
 
 
+def get_settings_from_cfg(cfg_filename='default',):
+    """
+    Reads optional analysis settings from the configurations json.
+    Every key is optional and has a default, so existing config
+    files keep working unchanged.
+
+    Recognized keys and defaults:
+        - "outlier_removal": "per_block" (default) or "published".
+            "per_block": outlier threshold (10 x 99th percentile of
+            the absolute main-axis signal) is computed within every
+            detected tap-block; removed samples are stored as NaN in
+            the block-csv and interpolated (and excluded from
+            features) during feature extraction.
+            "published": whole-recording outlier removal as final
+            preprocessing step, removed samples are deleted
+            (originally published behavior).
+        - "backfill_timestamps": true (default) / false. If true,
+            tap-phase timestamps the sample-wise state machine left
+            undetermined (NaN) are completed post hoc from the
+            within-tap velocity profile (only NaN slots are filled,
+            detected values are never changed). Set false to
+            reproduce the originally published behavior.
+        - "max_n_taps_incl": int, default 15. Maximum number of taps
+            per trace used for the per-tap features. NOTE: the
+            included UPDRS-prediction model (ReTap_RF_15taps) was
+            trained on 15 taps; the prediction step is only valid
+            with max_n_taps_incl = 15 and cannot be used with any
+            other value.
+        - "max_time_incl_s": float, default 0 (= off). If > 0,
+            per-tap features only include taps whose impact falls
+            within this many seconds after the first detected impact
+            (adds freq_window and n_taps_in_window to the features).
+
+    To reproduce the originally published pipeline exactly, set:
+        "outlier_removal": "published",
+        "backfill_timestamps": false,
+        "max_n_taps_incl": 15,
+        "max_time_incl_s": 0
+
+    Returns:
+        - settings: dict with the four keys above
+    """
+    if cfg_filename == 'default': cfg = read_cfg_file()
+    else: cfg = read_cfg_file(cfg_filename)
+
+    settings = {
+        'outlier_removal': cfg.get('outlier_removal', 'per_block'),
+        'backfill_timestamps': bool(cfg.get('backfill_timestamps', True)),
+        'max_n_taps_incl': int(cfg.get('max_n_taps_incl', 15)),
+        'max_time_incl_s': float(cfg.get('max_time_incl_s', 0)),
+    }
+    allowed_outlier = ['per_block', 'published']
+    assert settings['outlier_removal'] in allowed_outlier, (
+        'config-key "outlier_removal" must be one of '
+        f'{allowed_outlier}, got: "{settings["outlier_removal"]}"'
+    )
+    assert settings['max_n_taps_incl'] >= 0, (
+        'config-key "max_n_taps_incl" must be >= 0')
+    assert settings['max_time_incl_s'] >= 0, (
+        'config-key "max_time_incl_s" must be >= 0')
+
+    return settings
+
+
 def save_class_pickle(
     class_to_save,
     path,

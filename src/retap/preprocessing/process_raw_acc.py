@@ -55,10 +55,14 @@ class ProcessRawAccData:
         # IDENTIFY FILES TO PROCESS
         paths = data_management.get_directories_from_cfg(self.cfg_filename)
         if self.verbose: print(f'paths found in ProcessRawAccData: {paths}')
+        # analysis settings from config json ("outlier_removal":
+        # "per_block" (default) or "published")
+        settings = data_management.get_settings_from_cfg(self.cfg_filename)
+        outlier_mode = settings['outlier_removal']
 
-        # FIX (enabling bugfix): raw_path was only assigned in the
-        # all-files branch, so use_single_file mode crashed with
-        # UnboundLocalError at the read_csv call below
+        # (bugfix: raw_path was only assigned in the all-files branch,
+        # so use_single_file mode crashed with UnboundLocalError at the
+        # read_csv call below)
         raw_path = paths['raw']
         # use given file
         if self.use_single_file:
@@ -171,9 +175,9 @@ class ProcessRawAccData:
 
 
                 ### PREPROCESS ###
-                # FIX C1/C2: preprocess WITHOUT the whole-recording
-                # outlier removal to obtain the clean signal the block
-                # DATA will be extracted from ...
+                # preprocess WITHOUT the whole-recording outlier removal
+                # to obtain the clean signal the block DATA will be
+                # extracted from in "per_block" mode ...
                 procsd_clean, main_ax_i = preprocess_acc(
                     dat_arr=getattr(file_data_class, acc_side),
                     fs=fs,
@@ -185,10 +189,11 @@ class ProcessRawAccData:
                     verbose=self.verbose,
                 )
                 # ... and apply the published whole-recording outlier
-                # removal ONLY to the signal used for block DETECTION
-                # (it is the last preprocessing step, so this exactly
+                # removal to the signal used for block DETECTION (it is
+                # the last preprocessing step, so this exactly
                 # reproduces the published detection input; block
-                # boundaries and numbering are therefore unchanged)
+                # boundaries and numbering are therefore identical in
+                # both outlier_removal modes)
                 # (main_ax_i is the axis chosen at the START of
                 # preprocess_acc, exactly as the published code passes
                 # it to remove_outlier)
@@ -201,6 +206,11 @@ class ProcessRawAccData:
 
                 self.data = file_data_class  # store in class to work with in notebook
 
+                # in "published" mode the block-csvs are stored directly
+                # by find_active_blocks, from the outlier-removed signal
+                # (originally published behavior)
+                store_csv_from_detect = (self.STORE_CSV
+                                         and outlier_mode == 'published')
                 temp_acc, temp_ind = find_blocks.find_active_blocks(
                     acc_arr=getattr(file_data_class, acc_side),
                     fs=self.goal_fs,
@@ -210,23 +220,29 @@ class ProcessRawAccData:
                     figsave_dir=blocks_fig_path,
                     figsave_name=(f'{TRACE_CODE}_'
                                   f'{acc_side}_blocks_detected'),
-                    to_store_csv=False,  # CSVs stored below, from clean data
+                    to_store_csv=store_csv_from_detect,
                     csv_dir=blocks_csv_path,
                     csv_fname=csv_fname,
                 )
-                # FIX C1/C2: extract block data from the CLEAN signal at
-                # the published block boundaries, then per-block outlier
-                # removal (movement-based threshold) + gap interpolation
-                clean_blocks = [
-                    remove_outlier_block(
-                        procsd_clean[:, i1:i2], self.goal_fs, verbose=True)
-                    for i1, i2 in zip(temp_ind['start'], temp_ind['end'])
-                ]
-                if self.STORE_CSV:
-                    find_blocks.save_block_csv(
-                        clean_blocks, self.goal_fs, blocks_csv_path,
-                        csv_fname, verbose=self.verbose,
-                    )
+                if outlier_mode == 'per_block':
+                    # extract block data from the CLEAN signal at the
+                    # (published) block boundaries, then per-block
+                    # outlier removal with a movement-based threshold;
+                    # removed samples are stored as NaN in the csv and
+                    # interpolated (and excluded from features) during
+                    # feature extraction
+                    clean_blocks = [
+                        remove_outlier_block(
+                            procsd_clean[:, i1:i2], self.goal_fs,
+                            verbose=True)
+                        for i1, i2 in zip(temp_ind['start'],
+                                          temp_ind['end'])
+                    ]
+                    if self.STORE_CSV:
+                        find_blocks.save_block_csv(
+                            clean_blocks, self.goal_fs, blocks_csv_path,
+                            csv_fname, verbose=self.verbose,
+                        )
                 self.current_trace_list.append(csv_fname)
 
 

@@ -165,7 +165,7 @@ def RMS_extraction(
 
         for n, tap in enumerate(tap_indices):
 
-            # FIX C15: check for missing indices BEFORE integer conversion.
+            # check for missing indices BEFORE integer conversion.
             # (Previously `tap.astype(int)` ran first, converting np.nan to a
             # huge negative integer, so the NaN-checks below could never fire
             # and a negative index would silently wrap around in Python.)
@@ -183,7 +183,7 @@ def RMS_extraction(
             if np.isnan(i1) or np.isnan(i2):
                 continue  # leave RMS[n] as NaN placeholder
 
-            # FIX C15: clamp window start to signal start, so the impact
+            # clamp window start to signal start, so the impact
             # window of a first tap near the block edge cannot become a
             # negative (wrap-around) index yielding an empty slice
             sel1 = max(0, int(i1))
@@ -254,7 +254,7 @@ def velo_calc_auc(tap_indices, accSig,):
                 print('\nSUM 0',n, line[:30], tap[0], tap[1])
             out.append(sum(areas))
         else:
-            # FIX C13: keep one entry per tap (NaN placeholder) instead of
+            # keep one entry per tap (NaN placeholder) instead of
             # silently skipping taps with unknown fastestUp; keeps the
             # array aligned with tap_indices, downstream aggregations
             # are NaN-aware (np.nanmean etc.)
@@ -331,12 +331,12 @@ def jerkiness(
                 np.isnan(tap[0]),
                 np.isnan(tap[-1])
             ):
-                # FIX C14: NaN placeholder instead of skip (keeps array
+                # NaN placeholder instead of skip (keeps array
                 # aligned with tap_indices)
                 trace_count.append(np.nan)
 
             elif len(tap) == 0:
-                trace_count.append(np.nan)  # FIX C14
+                trace_count.append(np.nan)  # NaN placeholder, keeps alignment
 
             else:
                 tap_acc = accsig[:, int(tap[0]):int(tap[-1])]
@@ -368,12 +368,12 @@ def entropy_per_tap(
             np.isnan(tap[0]),
             np.isnan(tap[-1])
         ):
-            # FIX C14: NaN placeholder instead of skip (keeps array
+            # NaN placeholder instead of skip (keeps array
             # aligned with tap_indices)
             entr_list.append(np.nan)
 
         elif len(tap) == 0:
-            entr_list.append(np.nan)  # FIX C14
+            entr_list.append(np.nan)  # NaN placeholder, keeps alignment
 
         else:
             tap_svm = svm[int(tap[0]):int(tap[-1])]

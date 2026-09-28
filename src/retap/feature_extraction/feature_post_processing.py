@@ -42,7 +42,7 @@ def ft_decrement(
     if not isinstance(ft_array, np.ndarray):
         return 0
 
-    # FIX C13 (companion): count only valid (non-NaN) values, so that the
+    # count only valid (non-NaN) values, so that the
     # NaN placeholders introduced for skipped taps do not change whether
     # this guard fires
     if np.sum(~np.isnan(ft_array)) < 8:

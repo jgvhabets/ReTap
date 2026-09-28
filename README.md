@@ -96,6 +96,18 @@ Steps to perform in your (anaconda) prompt:
     - the filenaming will be used for storing the results, so make sure the namings are traceable and differentiable
 - MAKE SURE TO CHANGE THE VARIABLE `raw_acc_folder` within configs.json into THE LOCAL FOLDER WHERE YOU STORED THE ACCELEROMETER FILES THAT NEED TO BE PROCESSED.
 
+### Analysis settings (optional, defined in configs.json)
+All analysis settings are defined in the config json - no code changes needed. Every key is optional; when a key is missing, its default is used:
+
+| config-key | default | meaning |
+|---|---|---|
+| `outlier_removal` | `"per_block"` | `"per_block"`: outlier threshold (10x the 99th percentile of the absolute main-axis signal) is computed within every detected tap-block; removed samples are stored as NaN in the extracted block-csv, interpolated during feature extraction to keep the sample clock intact, and all features overlapping such a gap are excluded (NaN). `"published"`: whole-recording outlier removal as final preprocessing step, removed samples are deleted (originally published behavior; note that in long recordings with few tap-blocks the whole-recording threshold can drop below true tap amplitudes and remove genuine taps). |
+| `backfill_timestamps` | `true` | if `true`, tap-phase timestamps that the sample-wise detection state machine left undetermined (NaN) are completed post hoc from the within-tap velocity profile, using the same physical definitions; only NaN values are filled, detected values are never changed. Set `false` to reproduce the originally published behavior (undetermined timestamps stay NaN, and the corresponding per-tap features cannot be computed). |
+| `max_n_taps_incl` | `15` | maximum number of taps per trace used for the per-tap features. NOTE: the included UPDRS-prediction model (`ReTap_RF_15taps`) was trained on 15 taps - the prediction step is only valid with `max_n_taps_incl = 15` and cannot be used with any other value. |
+| `max_time_incl_s` | `0` | if > 0, per-tap features only include taps whose impact falls within this many seconds after the first detected impact; the features `freq_window` (taps per second within min(window, available time)) and `n_taps_in_window` are added. `0` = off. |
+
+**To reproduce the originally published pipeline**, set: `"outlier_removal": "published"`, `"backfill_timestamps": false`, `"max_n_taps_incl": 15`, `"max_time_incl_s": 0`. Independent of these settings, a small set of bookkeeping repairs is always active: per-tap feature arrays keep one entry per tap (a tap that cannot be measured appears as an explicit NaN instead of being silently dropped, so arrays stay aligned with the detected taps and decrement/slope fits use the correct tap positions), and several latent indexing bugs are fixed. These repairs never change detection or any correctly measured value.
+
 ### Notebook usage
 - if `raw_acc_folder` within `ReTap/data/settings/configs.json` is changed succesfully, you can execute ReTap from a notebook, see the example in `src/retap/main_scripts/run_retap.ipynb`
 

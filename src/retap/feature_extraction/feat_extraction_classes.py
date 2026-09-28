@@ -38,11 +38,17 @@ class singleTrace:
     """
     filepath: str
     goal_fs: int = 250
-    max_n_taps_incl: int = 15
-    max_time_incl_s: float = 0  # C22: 0 = off; if > 0, per-tap features
-                                # use only taps whose impact falls within
+    max_n_taps_incl: int = 15  # max taps used for per-tap features
+    max_time_incl_s: float = 0  # 0 = off; if > 0, per-tap features use
+                                # only taps whose impact falls within
                                 # this many seconds after the first
                                 # detected impact; adds freq_window
+    backfill_timestamps: bool = True  # complete NaN tap-timestamps post
+                                      # hoc (false = published behavior)
+    interpolate_nan_gaps: bool = True  # interpolate NaN-gaps in the
+                                       # block-data and exclude features
+                                       # overlapping them (false =
+                                       # published NaN-deletion)
 
     def __post_init__(self,):
         # load and store tri-axial ACC-signal
@@ -108,12 +114,27 @@ class singleTrace:
                 to_remove_outlier=True,
             )
 
+        # NaN-gap handling: with per-block outlier removal, removed
+        # samples are stored as NaN in the block-csv. They are linearly
+        # interpolated here to keep the sample clock intact, and their
+        # positions are remembered (interp_mask) so that all features
+        # overlapping a gap can be excluded below - interpolated
+        # samples carry no real data. If interpolate_nan_gaps is false
+        # (published behavior), NaN samples are deleted downstream.
+        interp_mask = None
+        if self.interpolate_nan_gaps and np.isnan(acc_data).any():
+            interp_mask = np.isnan(acc_data).any(axis=0)
+            acc_data = preprocess.interpolate_nan_gaps(
+                acc_data, self.fs, verbose=False,
+            )
+
         # set data to attribute (3 rows, n-samples columns)
         setattr(self, 'acc_sig', acc_data)
         
         # Find Single Taps in Acc-trace
         tap_idx, impact_idx, _ = find_tap_timings(acc_triax=self.acc_sig,
-                                                  fs=self.fs,)
+                                                  fs=self.fs,
+                                                  backfill=self.backfill_timestamps,)
 
         # # store taps and features in current Class
         # setattr(self, 'impact_idx', impact_idx)
@@ -124,6 +145,7 @@ class singleTrace:
             tap_lists=tap_idx,
             max_n_taps_incl=self.max_n_taps_incl,
             max_time_incl_s=self.max_time_incl_s,
+            interp_mask=interp_mask,
         )
 
 
@@ -152,10 +174,24 @@ class tapFeatures:
     tap_lists: dict = field(default_factory=dict)
     max_n_taps_incl: int = 0
     max_time_incl_s: float = 0
+    interp_mask: Any = None  # boolean array marking interpolated
+                             # (non-real) samples; features overlapping
+                             # them are set to NaN
     
+    def _remove_bookkeeping_attrs(self,):
+        # remove bookkeeping attributes before the features are
+        # json-serialized: interp_mask can be a large array, and
+        # max_time_incl_s is only kept when the time-window rule is
+        # active (provenance); keeps the feature-json identical to the
+        # published format when these options are off
+        if hasattr(self, 'interp_mask'): del self.interp_mask
+        if getattr(self, 'max_time_incl_s', 1) == 0:
+            del self.max_time_incl_s
+
     def __post_init__(self,):
 
         if len(self.tap_lists) == 0:  # no taps detected
+            self._remove_bookkeeping_attrs()
             return
 
         if np.isnan(self.triax_arr).any():
@@ -194,7 +230,7 @@ class tapFeatures:
         setattr(self, 'trace_entropy', entr_trace)
 
 
-        # C22: time-window rule - restrict per-tap features to taps whose
+        # time-window rule - restrict per-tap features to taps whose
         # impact falls within max_time_incl_s seconds after the FIRST
         # detected impact. Trace-level features above are untouched; the
         # published freq is kept, a windowed rate is ADDED as freq_window.
@@ -211,6 +247,7 @@ class tapFeatures:
                     [t for t in self.tap_lists if t[5] <= t_end])
             self.n_taps_in_window = len(self.tap_lists)
             if len(self.tap_lists) == 0:
+                self._remove_bookkeeping_attrs()
                 return  # no taps inside window: no per-tap features
 
         if self.max_n_taps_incl > 0:
@@ -273,6 +310,50 @@ class tapFeatures:
             accsig=self.triax_arr,
             tap_indices=self.tap_lists,
         )
+
+        # exclude features overlapping interpolated NaN-gaps:
+        # interpolated samples carry no real data, they only preserve
+        # the sample clock. Every tap whose window overlaps a gap, and
+        # every inter-tap interval spanning a gap, is set to NaN
+        # (all aggregations below are NaN-aware).
+        if self.interp_mask is not None and np.any(self.interp_mask):
+            m = np.asarray(self.interp_mask, dtype=bool)
+            halfwin = int(self.fs * .25 / 2)  # impactRMS window margin
+            contaminated = np.zeros(len(self.tap_lists), dtype=bool)
+            for i, tap in enumerate(self.tap_lists):
+                tap = np.asarray(tap, dtype=float)
+                if np.isnan(tap).all(): continue
+                lo = int(np.nanmin(tap))
+                hi = int(np.nanmax(tap))
+                if not np.isnan(tap[5]):  # include impactRMS window
+                    lo = min(lo, int(tap[5]) - halfwin)
+                    hi = max(hi, int(tap[5]) + halfwin)
+                lo, hi = max(0, lo), min(len(m) - 1, hi)
+                contaminated[i] = m[lo:hi + 1].any()
+            if contaminated.any():
+                print(f'\t{int(contaminated.sum())} tap(s) overlapping '
+                      'interpolated gap(s) excluded from per-tap features')
+                for ft_name in ['tapRMS', 'tapRMSnrm', 'impactRMS',
+                                'raise_velocity', 'jerkiness_taps',
+                                'tap_entropy']:
+                    ft_arr = np.asarray(getattr(self, ft_name), dtype=float)
+                    ft_arr[contaminated[:len(ft_arr)]] = np.nan
+                    setattr(self, ft_name, ft_arr)
+            # inter-tap intervals spanning a gap
+            iti_arr = np.asarray(self.intraTapInt, dtype=float)
+            n_iti_excl = 0
+            for n in np.arange(len(self.tap_lists) - 1):
+                imp1 = self.tap_lists[n][5]
+                imp2 = self.tap_lists[n + 1][5]
+                if np.isnan(imp1) or np.isnan(imp2): continue
+                if m[int(imp1):int(imp2) + 1].any():
+                    if n < len(iti_arr):
+                        iti_arr[n] = np.nan
+                        n_iti_excl += 1
+            if n_iti_excl:
+                print(f'\t{n_iti_excl} inter-tap interval(s) spanning '
+                      'interpolated gap(s) excluded')
+            self.intraTapInt = iti_arr
 
         ### POST-EXTRACTION ANALYSIS
         fts_to_postExtr_calc = [
@@ -346,3 +427,4 @@ class tapFeatures:
 
         # clear up space
         self.triax_arr = 'cleaned up'
+        self._remove_bookkeeping_attrs()

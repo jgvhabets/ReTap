@@ -13,7 +13,7 @@ from retap.feature_extraction.kinematic_features import signalvectormagn
 from retap.preprocessing.single_block_preprocessing import remove_acc_nans
 
 
-def find_tap_timings(acc_triax, fs: int,):
+def find_tap_timings(acc_triax, fs: int, backfill: bool = True,):
     """
     Detect the moments of finger-raising and -lowering
     during a fingertapping task.
@@ -122,10 +122,11 @@ def find_tap_timings(acc_triax, fs: int,):
                         tempi[0] = end_last_tap_n + 5
 
                     tempi_arr = np.array(tempi)
-                    # FIX C9: complete tap-moments the state machine
-                    # missed (fills ONLY NaN slots, existing values are
-                    # never changed; see backfill_tap_moments)
-                    if np.isnan(tempi_arr[1:5]).any():
+                    # complete tap-moments the state machine missed
+                    # (fills ONLY NaN slots, existing values are never
+                    # changed; see backfill_tap_moments; set config-key
+                    # "backfill_timestamps" false to disable)
+                    if backfill and np.isnan(tempi_arr[1:5]).any():
                         tempi_arr = backfill_tap_moments(tempi_arr, sig, fs)
                     tapi.append(tempi_arr)  # add detected tap-indices as array
                     end_last_tap_n = tempi[6]  # update last impact n to possible fill next start-index
@@ -188,9 +189,12 @@ def find_tap_timings(acc_triax, fs: int,):
 
 def backfill_tap_moments(tap, sig, fs, smooth_samples: int = 3):
     """
-    FIX C9: complete tap-phase timestamps which the sample-wise state
+    Complete tap-phase timestamps which the sample-wise state
     machine left as NaN, computed post hoc from the signal between the
     two always-known anchors startUP (slot 0) and impact (slot 5).
+    Controlled by config-key "backfill_timestamps" (default true; set
+    false to reproduce the originally published pipeline, in which
+    undetermined timestamps remain NaN).
 
     The slots keep their published physical definitions, but are found
     globally on the closed tap segment instead of during the sample-wise
@@ -317,7 +321,7 @@ def find_impacts(uni_arr, fs):
     Returns:
         - impacts: impact-positions of method v1
     """
-    # NOTE (C5, evaluated and rejected): percentile-capped threshold
+    # NOTE (evaluated and rejected): percentile-capped threshold
     # references were tested against 39 validation blocks and rejected -
     # capping the slope reference admitted false-positive detections
     # (diff distributions are naturally heavy-tailed), and inert caps
@@ -337,7 +341,7 @@ def find_impacts(uni_arr, fs):
     )[0]
 
     # select peaks with surrounding pos- or neg-DIFF-peak
-    # FIX C8: clamp window start to 0 (a negative Python slice index counts
+    # clamp window start to 0 (a negative Python slice index counts
     # from the array END, returning an empty window for peaks in the first
     # 3 samples, which silently rejected them)
     impact_pos = [np.logical_or(
