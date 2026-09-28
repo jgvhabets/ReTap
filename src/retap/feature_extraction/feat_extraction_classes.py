@@ -246,6 +246,33 @@ class tapFeatures:
             setattr(self, 'tap_lists',
                     [t for t in self.tap_lists if t[5] <= t_end])
             self.n_taps_in_window = len(self.tap_lists)
+
+            # windowed variants of the trace-level features, computed on
+            # the SAME window as the per-tap features (first impact +
+            # max_time_incl_s, capped at block end). The published
+            # full-block values above stay untouched. The denominator
+            # convention matches freq_window (min of window and
+            # available time), so the duration-normalisation of
+            # trace_RMSn is comparable across blocks of unequal length.
+            w0 = int(imp[0])
+            w1 = int(min(t_end, self.triax_arr.shape[1]))
+            win_arr = self.triax_arr[:, w0:w1]
+            svm_win = kin_feats.signalvectormagn(win_arr)
+            if np.isnan(svm_win).any():
+                svm_win = svm_win[~np.isnan(svm_win)]
+            self.trace_RMSn_window = (
+                kin_feats.calc_RMS(svm_win) / denom_s)
+            norm_svm_win = np.around(svm_win / max(svm_win), 4)
+            self.trace_entropy_window = kin_feats.calc_entropy(
+                norm_svm_win)
+            self.jerkiness_trace_window = kin_feats.jerkiness(
+                accsig=win_arr,
+                fs=self.fs,
+                tap_indices=self.tap_lists,
+                unit_to_assess='trace',
+                smooth_samples=0,
+            )
+
             if len(self.tap_lists) == 0:
                 self._remove_bookkeeping_attrs()
                 return  # no taps inside window: no per-tap features
