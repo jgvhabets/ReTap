@@ -9,7 +9,7 @@ setup(
     long_description='',
     url='https://github.com/jgvhabets/ReTap',
     packages=find_packages(where="src"),
-    install_requires=['jupyter', 'pandas', 'numpy', 'scipy', 'scikit-learn', 'matplotlib', 'h5py', 'mne', 'openpyxl', 'pengouin'],
+    install_requires=['jupyter', 'pandas', 'numpy', 'scipy', 'scikit-learn', 'matplotlib', 'h5py', 'mne', 'openpyxl', 'pingouin'],
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Neurological, Movement Disorders, Researchers',
