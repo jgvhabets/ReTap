@@ -213,7 +213,13 @@ def backfill_tap_moments(tap, sig, fs, smooth_samples: int = 3):
     never changed. A candidate that would violate the physiological
     ordering (startUP < fastestUp < stopUP <= startDown < fastestDown
     < impact, also with respect to already-filled slots) is discarded
-    and the slot remains NaN.
+    and the slot remains NaN. fastestUp is additionally only accepted
+    when the velocity maximum is verifiable: the window must span at
+    least 10 samples, the maximum must lie at least 4 samples from
+    both window edges (beyond the smoothing-kernel width), and the
+    upward excursion must make up at least 15% of the within-window
+    velocity range - otherwise the window demonstrably contains no
+    raise phase (e.g. startUP fired late) and all slots stay NaN.
 
     Input:
         - tap (array): 7 tap-moment sample-indices, possibly with NaNs
@@ -232,7 +238,9 @@ def backfill_tap_moments(tap, sig, fs, smooth_samples: int = 3):
     if np.isnan(tap[0]) or np.isnan(tap[5]):
         return tap
     t0, t5 = int(tap[0]), int(tap[5])
-    if t5 - t0 < 4 or t0 < 0 or t5 > len(sig):
+    # a window shorter than 10 samples (40 ms @ 250 Hz) cannot contain
+    # a resolvable raise-plus-deceleration; leave all slots NaN
+    if t5 - t0 < 10 or t0 < 0 or t5 > len(sig):
         return tap
 
     seg = np.asarray(sig[t0:t5], dtype=float)
@@ -247,7 +255,19 @@ def backfill_tap_moments(tap, sig, fs, smooth_samples: int = 3):
     # candidate landmarks (indices relative to t0)
     cand = {1: None, 2: None, 3: None, 4: None}
     i1 = int(np.argmax(v))
-    if 1 <= i1 < len(seg) - 1:
+    # accept fastestUp only when the velocity maximum is verifiable:
+    # (a) it lies clear of both window edges (>= 4 samples, i.e.
+    #     beyond the reach of the 3-sample smoothing kernel), and
+    # (b) the upward excursion makes up >= 15% of the within-window
+    #     velocity range (a shape criterion: the speed scale divides
+    #     out, so slow-but-clean raises pass at any velocity).
+    # Windows whose integrated velocity never meaningfully rises
+    # (late startUP, downward-dominated segment) contain no resolvable
+    # raise phase: fastestUp stays NaN, as in the published pipeline,
+    # instead of defaulting to the window edge with a spurious
+    # near-zero raise velocity.
+    v_range = v.max() - v.min()
+    if 4 <= i1 <= len(seg) - 4 and v_range > 0 and v[i1] >= 0.15 * v_range:
         cand[1] = i1
         i4 = i1 + int(np.argmin(v[i1:]))
         if i1 < i4 <= len(seg) - 1:
