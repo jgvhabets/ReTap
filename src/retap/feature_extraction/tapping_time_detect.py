@@ -3,6 +3,8 @@
 # Import public packages and functions
 import numpy as np
 from scipy.signal import find_peaks, peak_widths
+from scipy.integrate import cumulative_trapezoid
+from scipy.ndimage import uniform_filter1d
 from pandas import DataFrame
 
 # Import own functions
@@ -11,7 +13,7 @@ from retap.feature_extraction.kinematic_features import signalvectormagn
 from retap.preprocessing.single_block_preprocessing import remove_acc_nans
 
 
-def find_tap_timings(acc_triax, fs: int,):
+def find_tap_timings(acc_triax, fs: int, backfill: bool = True,):
     """
     Detect the moments of finger-raising and -lowering
     during a fingertapping task.
@@ -119,7 +121,14 @@ def find_tap_timings(acc_triax, fs: int,):
                         # if not detected, than use end of last tap
                         tempi[0] = end_last_tap_n + 5
 
-                    tapi.append(np.array(tempi))  # add detected tap-indices as array
+                    tempi_arr = np.array(tempi)
+                    # complete tap-moments the state machine missed
+                    # (fills ONLY NaN slots, existing values are never
+                    # changed; see backfill_tap_moments; set config-key
+                    # "backfill_timestamps" false to disable)
+                    if backfill and np.isnan(tempi_arr[1:5]).any():
+                        tempi_arr = backfill_tap_moments(tempi_arr, sig, fs)
+                    tapi.append(tempi_arr)  # add detected tap-indices as array
                     end_last_tap_n = tempi[6]  # update last impact n to possible fill next start-index
 
                     tempi = empty_timelist.copy()  # start with new empty list
@@ -178,6 +187,136 @@ def find_tap_timings(acc_triax, fs: int,):
     return tapi, impacts, acc_triax
 
 
+def backfill_tap_moments(tap, sig, fs, smooth_samples: int = 3):
+    """
+    Complete tap-phase timestamps which the sample-wise state
+    machine left as NaN, computed post hoc from the signal between the
+    two always-known anchors startUP (slot 0) and impact (slot 5).
+    Controlled by config-key "backfill_timestamps" (default true; set
+    false to reproduce the originally published pipeline, in which
+    undetermined timestamps remain NaN).
+
+    The slots keep their published physical definitions, but are found
+    globally on the closed tap segment instead of during the sample-wise
+    walk (which cannot recover from a missed transition):
+        - fastestUp   (slot 1): maximum of the within-tap velocity
+            profile (cumulative integral of acceleration); equivalent
+            to the +/- acceleration zero-crossing of the state machine
+        - fastestDown (slot 4): minimum of the velocity profile after
+            fastestUp
+        - stopUP      (slot 2): first sample after fastestUp where
+            acceleration returns to >= 0 (end of up-deceleration)
+        - startDown   (slot 3): last sample before fastestDown where
+            acceleration is >= 0 (start of down-acceleration)
+
+    ONLY NaN slots are filled - values found by the state machine are
+    never changed. A candidate that would violate the physiological
+    ordering (startUP < fastestUp < stopUP <= startDown < fastestDown
+    < impact, also with respect to already-filled slots) is discarded
+    and the slot remains NaN. fastestUp is additionally only accepted
+    when the velocity maximum is verifiable: the window must span at
+    least 10 samples, the maximum must lie at least 4 samples from
+    both window edges (beyond the smoothing-kernel width), and the
+    upward excursion must make up at least 15% of the within-window
+    velocity range - otherwise the window demonstrably contains no
+    raise phase (e.g. startUP fired late) and all slots stay NaN.
+
+    Input:
+        - tap (array): 7 tap-moment sample-indices, possibly with NaNs
+        - sig (array): main-axis acc signal the indices refer to
+        - fs (int): sample frequency
+        - smooth_samples: light smoothing (in samples) applied before
+            landmark detection, to avoid noise-driven zero-crossings
+
+    Returns:
+        - tap (array): same array with NaN slots 1-4 filled where a
+            consistent candidate was found
+    """
+    tap = np.array(tap, dtype=float)
+
+    # anchors must be known and in order
+    if np.isnan(tap[0]) or np.isnan(tap[5]):
+        return tap
+    t0, t5 = int(tap[0]), int(tap[5])
+    # a window shorter than 10 samples (40 ms @ 250 Hz) cannot contain
+    # a resolvable raise-plus-deceleration; leave all slots NaN
+    if t5 - t0 < 10 or t0 < 0 or t5 > len(sig):
+        return tap
+
+    seg = np.asarray(sig[t0:t5], dtype=float)
+    if np.isnan(seg).any():
+        return tap
+    if smooth_samples > 1:
+        seg = uniform_filter1d(seg, smooth_samples)
+
+    # within-tap velocity profile (arbitrary units; only extrema matter)
+    v = cumulative_trapezoid(seg, initial=0)
+
+    # candidate landmarks (indices relative to t0)
+    cand = {1: None, 2: None, 3: None, 4: None}
+    i1 = int(np.argmax(v))
+    # accept fastestUp only when the velocity maximum is verifiable:
+    # (a) it lies clear of both window edges (>= 4 samples, i.e.
+    #     beyond the reach of the 3-sample smoothing kernel), and
+    # (b) the upward excursion makes up >= 15% of the within-window
+    #     velocity range (a shape criterion: the speed scale divides
+    #     out, so slow-but-clean raises pass at any velocity).
+    # Windows whose integrated velocity never meaningfully rises
+    # (late startUP, downward-dominated segment) contain no resolvable
+    # raise phase: fastestUp stays NaN, as in the published pipeline,
+    # instead of defaulting to the window edge with a spurious
+    # near-zero raise velocity.
+    v_range = v.max() - v.min()
+    if 4 <= i1 <= len(seg) - 4 and v_range > 0 and v[i1] >= 0.15 * v_range:
+        cand[1] = i1
+        i4 = i1 + int(np.argmin(v[i1:]))
+        if i1 < i4 <= len(seg) - 1:
+            cand[4] = i4
+            # stopUP / startDown: defined on the velocity profile.
+            # At the movement apex the velocity has decayed to ~zero:
+            # stopUP = first sample after fastestUp where v enters a
+            # small band around zero (raise finished), startDown =
+            # last sample before fastestDown where v has not yet left
+            # it downwards (drop not yet started). With a hover phase
+            # these bracket the v~0 plateau; without one they collapse
+            # onto the zero-crossing (hover duration ~0, stopUP <=
+            # startDown by monotonicity of v between the extrema).
+            vmax, vmin = v[i1], v[i4]
+            if vmax > vmin:
+                eps = 0.05 * (vmax - vmin)
+                rel = np.where(v[i1 + 1:i4 + 1] <= eps)[0]
+                if len(rel): cand[2] = i1 + 1 + int(rel[0])
+                rel = np.where(v[i1 + 1:i4] >= -eps)[0]
+                if len(rel): cand[3] = i1 + 1 + int(rel[-1])
+
+    # fill ONLY NaN slots, and only if consistent with already-known
+    # neighbouring slots (state-machine values are never modified)
+    for slot in (1, 2, 3, 4):
+        if not np.isnan(tap[slot]) or cand[slot] is None:
+            continue
+        val = t0 + cand[slot]
+        known_before = [tap[s] for s in range(0, slot) if not np.isnan(tap[s])]
+        known_after = [tap[s] for s in range(slot + 1, 6) if not np.isnan(tap[s])]
+        lower = max(known_before) if known_before else None
+        upper = min(known_after) if known_after else None
+        # ordering: strictly increasing; equality is ONLY allowed
+        # between stopUP (2) and startDown (3) - the no-hover case
+        lo_ok = (lower is None or val > lower
+                 or (slot == 3 and not np.isnan(tap[2])
+                     and val >= tap[2] and val > max(
+                         [tap[s] for s in (0, 1) if not np.isnan(tap[s])],
+                         default=-np.inf)))
+        up_ok = (upper is None or val < upper
+                 or (slot == 2 and not np.isnan(tap[3])
+                     and val <= tap[3] and val < min(
+                         [tap[s] for s in (4, 5) if not np.isnan(tap[s])],
+                         default=np.inf)))
+        if lo_ok and up_ok:
+            tap[slot] = val
+
+    return tap
+
+
 def find_impacts(uni_arr, fs):
     """
     Function to detect the impact moments in
@@ -202,6 +341,15 @@ def find_impacts(uni_arr, fs):
     Returns:
         - impacts: impact-positions of method v1
     """
+    # NOTE (evaluated and rejected): percentile-capped threshold
+    # references were tested against 39 validation blocks and rejected -
+    # capping the slope reference admitted false-positive detections
+    # (diff distributions are naturally heavy-tailed), and inert caps
+    # added an undefendable deviation from the published method.
+    # Thresholds below are the PUBLISHED definitions. Known limitation:
+    # a single large artifact inside a block inflates both references
+    # and can suppress detection of all true taps in that block
+    # (signature: implausibly low tap count + extreme max/p99.5 ratio).
     thresh = np.nanmax(uni_arr) * .2
     arr_diff = np.diff(uni_arr)
     df_thresh = np.nanmax(arr_diff) * .2  # was .35 (14.12)
@@ -213,9 +361,12 @@ def find_impacts(uni_arr, fs):
     )[0]
 
     # select peaks with surrounding pos- or neg-DIFF-peak
+    # clamp window start to 0 (a negative Python slice index counts
+    # from the array END, returning an empty window for peaks in the first
+    # 3 samples, which silently rejected them)
     impact_pos = [np.logical_or(
-        any(arr_diff[i - 3:i + 3] < -df_thresh),
-        any(arr_diff[i - 3:i + 3] > df_thresh)
+        any(arr_diff[max(0, i - 3):i + 3] < -df_thresh),
+        any(arr_diff[max(0, i - 3):i + 3] > df_thresh)
     ) for i in pos_peaks]
     
     impacts = pos_peaks[impact_pos]

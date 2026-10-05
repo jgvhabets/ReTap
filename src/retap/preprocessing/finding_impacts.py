@@ -23,6 +23,15 @@ def find_impacts(uni_arr, fs):
     Returns:
         - impacts: impact-positions in trace-indices
     """
+    # NOTE (C5, evaluated and rejected): percentile-capped threshold
+    # references were tested against 39 validation blocks and rejected -
+    # capping the slope reference admitted false-positive detections
+    # (diff distributions are naturally heavy-tailed), and inert caps
+    # added an undefendable deviation from the published method.
+    # Thresholds below are the PUBLISHED definitions. Known limitation:
+    # a single large artifact inside a block inflates both references
+    # and can suppress detection of all true taps in that block
+    # (signature: implausibly low tap count + extreme max/p99.5 ratio).
     thresh = np.nanmax(uni_arr) * .2
     arr_diff = np.diff(uni_arr)
     df_thresh = np.nanmax(arr_diff) * .2  # was .35 (14.12)
@@ -34,9 +43,12 @@ def find_impacts(uni_arr, fs):
     )[0]
 
     # select peaks with surrounding pos- or neg-DIFF-peak
+    # clamp window start to 0 (a negative Python slice index counts
+    # from the array END, returning an empty window for peaks in the first
+    # 3 samples, which silently rejected them)
     impact_pos = [np.logical_or(
-        any(arr_diff[i - 3:i + 3] < -df_thresh),
-        any(arr_diff[i - 3:i + 3] > df_thresh)
+        any(arr_diff[max(0, i - 3):i + 3] < -df_thresh),
+        any(arr_diff[max(0, i - 3):i + 3] > df_thresh)
     ) for i in pos_peaks]
     
     impacts = pos_peaks[impact_pos]

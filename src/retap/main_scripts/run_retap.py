@@ -31,6 +31,8 @@ def main_retap_functionality(cfg_filename='configs_adbs.json',
     )
 
     # Part 2 and 3: detect single taps and feature extraction
+    # (analysis settings, e.g. max number/seconds of taps included,
+    # are defined in the config json, see configs_template.json)
     fts = run_ft_extraction(acc_block_names=rawAcc.current_trace_list,
                             cfg_filename=cfg_filename,
                             verbose=verbose)

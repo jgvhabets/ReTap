@@ -5,7 +5,8 @@ import datetime as dt
 import json
 from numpy import ndarray, int64, float64
 
-from retap.utils.data_management import get_directories_from_cfg, save_class_pickle
+from retap.utils.data_management import (
+    get_directories_from_cfg, get_settings_from_cfg, save_class_pickle)
 from retap.feature_extraction.feat_extraction_classes import singleTrace  
 
 
@@ -13,10 +14,16 @@ def run_ft_extraction(
     acc_block_names, cfg_filename='configs.json', verbose=True,
 ):
     """
-    Perform feature extraction
+    Perform feature extraction.
+
+    Analysis settings (max_n_taps_incl, max_time_incl_s,
+    backfill_timestamps, outlier_removal) are read from the
+    config json (see get_settings_from_cfg / configs_template.json).
     """
     # features to return
     feats_out = {}
+    # read analysis settings from config json
+    settings = get_settings_from_cfg(cfg_filename=cfg_filename)
     # find available tapping block files
     paths = get_directories_from_cfg(cfg_filename=cfg_filename)
     tap_block_path = join(paths['results'], 'extracted_tapblocks')
@@ -30,7 +37,13 @@ def run_ft_extraction(
         if not f_in_names: continue
 
         # if filename corresponds to one of the trace names
-        trace = singleTrace(join(tap_block_path, f))
+        trace = singleTrace(
+            join(tap_block_path, f),
+            max_n_taps_incl=settings['max_n_taps_incl'],
+            max_time_incl_s=settings['max_time_incl_s'],
+            backfill_timestamps=settings['backfill_timestamps'],
+            interpolate_nan_gaps=settings['outlier_removal'] == 'per_block',
+        )
         trace_key = splitext(f)[0]  # take trace name
         if trace_key.endswith('_250Hz'): trace_key = trace_key[:-6]
 

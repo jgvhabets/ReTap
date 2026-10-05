@@ -5,6 +5,10 @@
         "save_results": "",
         "save_figures": ""
     },
+    "outlier_removal": "per_block",
+    "backfill_timestamps": true,
+    "max_n_taps_incl": 15,
+    "max_time_incl_s": 0,
     "use_custom_acc_naming": false,
     "custom_acc_channel_naming": {
         "CUSTOM_L_X": "L_X",
